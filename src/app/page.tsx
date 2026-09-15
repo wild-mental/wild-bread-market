@@ -1,69 +1,34 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { BREAD_INDEXES, LAB, SCENARIOS, storefrontProductUrl } from '@/lib/cafe24/lab-config';
+import { describeChange } from '@/lib/cafe24/policy';
 
+// MAKJI 앱 랜딩(실습용). 기존 MVP가 있으면 이 파일 대신 MVP의 랜딩을 사용한다.
 export default function Home() {
+  const wheat = SCENARIOS.up;
+  const { changePct } = describeChange(wheat.previous, wheat.current);
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main>
+      <h1>MAKJI 브레드마켓</h1>
+      <p className="muted">시장을 읽는 작은 예측이, 더 맛있는 내일을 만듭니다 · 수치는 수업용 예시</p>
+      <div className="cards">
+        <div className="card">
+          <strong>{BREAD_INDEXES.wheat.name}</strong>
+          <p style={{ fontSize: 24, fontWeight: 800, margin: '4px 0' }}>
+            {wheat.current.toFixed(1)} <span style={{ color: '#d8453b', fontSize: 14 }}>▲{changePct.toFixed(1)}%</span>
           </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+          <p className="muted">{BREAD_INDEXES.wheat.market}</p>
+          <a href={storefrontProductUrl()} target="_blank" rel="noopener">
+            오늘의 브레드 보러 가기 (상품 {LAB.product.productNo}) →
           </a>
         </div>
-      </main>
-    </div>
+        <div className="card">
+          <strong>{BREAD_INDEXES.croissant.name}</strong>
+          <p className="muted">{BREAD_INDEXES.croissant.market} · 연결 상품 미정</p>
+        </div>
+        <div className="card">
+          <strong>{BREAD_INDEXES.golden.name}</strong>
+          <p className="muted">{BREAD_INDEXES.golden.market} · 연결 상품 미정</p>
+        </div>
+      </div>
+    </main>
   );
 }
