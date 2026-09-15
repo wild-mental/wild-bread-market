@@ -10,6 +10,7 @@
 
 | 단계 | 기대 결과 | 실제 결과 | 통과 |
 |---|---|---|---|
+| 5-3 준비 상태 점검 | `/admin/setup` 필요(fail) 0, DB·관리자 OK |  | ☐ |
 | 7-1 연결 | connected, 연결 상태 connected:true |  | ☐ |
 | 7-2 상품 조회 | 상품명 일치, price 5200, inCategory true |  | ☐ |
 | 7-3 기준값 저장 | created true → false |  | ☐ |
@@ -22,7 +23,8 @@
 | 9-1 앱 링크 | 상품 16 상세 열림 |  | ☐ |
 | 9-2 체험 화면 | /predict 제출·수정, /result 66.7% |  | ☐ |
 
-## 자동 테스트
+## 자동 점검
+- npm run db:setup: SETUP: ok=__ warn=__ fail=__ (비밀번호·접속 문자열은 적지 않음)
 - npm test: __ passed / __ failed
 - npm run build: 성공/실패
 

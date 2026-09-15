@@ -60,3 +60,20 @@ MINOR: 8
 
 STOP REASON: PROTOTYPE_VERIFIED
 AZTKS VERDICT: GO
+
+---
+
+## 사후 추가 (2026-09-16, 사용자 요청 — Goal 1 종료 뒤, 카운터 미포함) · Supabase 준비 자동화
+
+- POST-01 · **설치 스크립트** `npm run db:setup` / `npm run setup:check` (`scripts/db-setup.mjs`, 핵심 로직 `scripts/lib/db-setup-core.mjs`)
+  - 마이그레이션은 `supabase/migrations/*.sql`을 번호 순으로 파일마다 트랜잭션으로 적용하고, 적용 기록(이름·sha256)을 API에 노출되지 않는 `lab_private.schema_migrations`에 둔다. 이미 적용한 파일의 내용이 바뀌면 멈춘다. 기존 SQL이 `if not exists`·`or replace`라서 SQL Editor로 이미 만든 DB에도 적용할 수 있다.
+  - DB 접속은 `pg`(devDependency 8.23.0 고정)로 `SUPABASE_DB_URL`(Session pooler 문자열)을 쓴다. 이 값은 내 컴퓨터 `.env.local` 전용이며 Vercel에 넣지 않는다.
+  - 스키마 확인: 테이블 3개 · RLS · 잠금 함수 · anon 권한 없음 · service_role 쓰기 권한.
+- POST-02 · **관리자 계정 자동 생성**: `SETUP_ADMIN_EMAIL` 계정이 없을 때만 Supabase Auth Admin API로 이메일 확인된 계정을 만든다(있으면 절대 바꾸지 않음). 비밀번호는 파일에 두지 않고 터미널에서 두 번 입력(12자 이상)하거나 `--generate-password`로 만들어 한 번만 표시한다. `.env.local`의 `ADMIN_USER_IDS`가 비었거나 `pending`일 때만 UUID를 적고, 다른 UUID가 있으면 추가 제안만 한다. 웹 화면에서 관리자를 만드는 기능은 두지 않았다(인증 전 공개 화면에서 계정을 만들 수 있게 되면 선점 공격이 가능하므로).
+- POST-03 · **준비 상태 점검 화면** `/admin/setup` + 규칙 `src/lib/setup/env-rules.ts`(순수 함수, 스크립트와 공용 — 스크립트는 Node 24 타입 제거로 .ts를 직접 불러온다) + 조회 `src/lib/setup/readiness.ts`(읽기 전용)
+  - 접근: `ADMIN_USER_IDS`에 UUID가 설정되기 전(bootstrap)에는 로그인 없이, 설정 뒤에는 관리자만. 어느 경우든 값은 표시하지 않고 이름·상태·개수만 보여 준다.
+  - 점검: 환경변수 8개 형식(키 자리 뒤바뀜, pending, 32바이트 키, APP_BASE_URL과 접속 주소 일치), 배포 서버에 `SUPABASE_DB_URL`이 있으면 경고, DB 테이블·잠금 함수(없는 몰 ID로 호출해 아무것도 바꾸지 않음)·Publishable key로 토큰 테이블 접근 불가, 관리자 UUID가 실제 확인된 계정인지, 카페24 연결 상태.
+- POST-04 · **요청 시점 렌더링 강제**: `/admin/cafe24`·`/admin/setup`에서 `await connection()`. 환경변수 검사 뒤 redirect만 하고 cookies를 부르지 않는 경로가 생기자 빌드 때 정적 페이지(○)로 굳어 환경변수가 있어도 항상 `/admin/setup`으로 가는 문제가 smoke에서 드러났다.
+- POST-05 · **설정 전 동작 변경**(가이드 계약 영향): `src/proxy.ts`는 Supabase 공개값이 없으면 세션 갱신을 건너뛰고, `/admin/cafe24`는 로그인에 필요한 값이 없으면 500 대신 `/admin/setup`으로 307. 값이 있을 때의 동작(로그인 없음 → `/login`, 비관리자 → UUID 안내)은 그대로다.
+- POST-06 · **smoke 확장**: 가짜 Supabase에 Auth Admin(목록·생성·단건)·REST 권한 거부(42501)·잠금 RPC를 추가하고, 점검 화면(관리자 실패 0 · 로그인/비관리자 차단 · 비밀값 미노출)과 `db:setup` 전체 흐름(PGlite · 가짜 Auth · ADMIN_USER_IDS 기록 · 재실행 시 기존 계정 인식 · Secret 미출력) 4개 점검을 넣었다. 이 기능이 없는 프로젝트(학습자 프로젝트)는 SKIP으로 점수에서 빼므로 `--project` 기준은 24/24로 유지된다.
+- 검증: npm test 10 files 82 passed · build · lint · smoke 28/28 · 설정 전(환경변수 없음) 서버에서 `/admin/cafe24` → `/admin/setup` 307, 점검 화면 200 · 기능을 뺀 복사본 smoke 24/24(SKIP 1줄) · `pg` 경로는 PGlite 소켓 서버(Postgres 와이어 프로토콜)로 적용→재실행 건너뜀→확인 모드 확인. 실제 Supabase(Session pooler·Auth Admin API)에는 접속하지 않았다.

@@ -9,8 +9,10 @@
 // 실제 Supabase·카페24에는 요청을 보내지 않는다. 환경변수는 모두 테스트 전용 가짜 값이며 출력하지 않는다.
 // 마지막 줄은 항상 `SMOKE: 통과수/전체수 PASS`이고, 하나라도 실패하면 exit 1.
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import http from 'node:http';
 import net from 'node:net';
 import { dirname, join, resolve } from 'node:path';
@@ -92,6 +94,7 @@ function fakeUser(id) {
     app_metadata: { provider: 'email' },
     user_metadata: {},
     created_at: '2026-09-01T00:00:00Z',
+    email_confirmed_at: '2026-09-01T00:00:00Z',
   };
 }
 
@@ -109,14 +112,52 @@ function sessionCookie(supabaseUrl, userId) {
   return `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token=base64-${b64url(session)}`;
 }
 
-// ── 가짜 Supabase (Auth /user · REST cafe24_products) ────────────────
+// ── 가짜 Supabase (Auth /user · Auth Admin · REST 3개 테이블 · 잠금 RPC) ─────
+const FAKE_PUBLISHABLE = 'sb_publishable_smoke_fake';
+const FAKE_SECRET = 'sb_secret_smoke_fake';
+const LAB_TABLES = ['cafe24_connections', 'cafe24_products', 'cafe24_change_log'];
+const authUsers = []; // db:setup 점검에서 만든 사용자
+
 function startFakeSupabase(port) {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
-    const send = (status, body) => {
-      res.writeHead(status, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(body));
+    const send = (status, body, headers = {}) => {
+      res.writeHead(status, { 'content-type': 'application/json', ...headers });
+      res.end(body === undefined ? '' : JSON.stringify(body));
     };
+    const apikey = req.headers.apikey ?? '';
+    const isSecret = apikey === FAKE_SECRET || (req.headers.authorization ?? '') === `Bearer ${FAKE_SECRET}`;
+    if (url.pathname.startsWith('/auth/v1/admin/users')) {
+      if (!isSecret) return send(401, { code: 401, msg: 'invalid api key' });
+      const id = url.pathname.split('/')[5];
+      if (id) {
+        const user = [fakeUser(ADMIN_ID), fakeUser(USER_ID), ...authUsers].find((u) => u.id === id);
+        return user ? send(200, user) : send(404, { code: 404, error_code: 'user_not_found', msg: 'User not found' });
+      }
+      if (req.method === 'GET') return send(200, { users: authUsers, aud: 'authenticated' }, { 'x-total-count': String(authUsers.length) });
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          const attrs = JSON.parse(body || '{}');
+          const user = { ...fakeUser(randomUUID()), email: attrs.email, email_confirmed_at: attrs.email_confirm ? '2026-09-16T00:00:00Z' : null };
+          authUsers.push(user);
+          send(200, user);
+        });
+        return;
+      }
+    }
+    if (url.pathname === '/rest/v1/rpc/cafe24_try_refresh_lock') {
+      return isSecret ? send(200, false) : send(401, { code: '42501', message: 'permission denied for function cafe24_try_refresh_lock' });
+    }
+    const table = LAB_TABLES.find((t) => url.pathname === `/rest/v1/${t}`);
+    if (table && !isSecret) {
+      return send(401, { code: '42501', details: null, hint: null, message: `permission denied for table ${table}` });
+    }
+    if (table && req.method === 'HEAD') return send(200, undefined, { 'content-range': '*/0' });
+    if (url.pathname === '/rest/v1/cafe24_connections' || url.pathname === '/rest/v1/cafe24_change_log') {
+      return send(200, [], { 'content-range': '*/0' });
+    }
     if (url.pathname === '/auth/v1/user') {
       const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
       let sub = '';
@@ -220,8 +261,8 @@ async function main() {
   const fakeSupabase = await startFakeSupabase(supabasePort);
   const env = {
     NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_smoke_fake',
-    SUPABASE_SECRET_KEY: 'sb_secret_smoke_fake',
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: FAKE_PUBLISHABLE,
+    SUPABASE_SECRET_KEY: FAKE_SECRET,
     ADMIN_USER_IDS: ADMIN_ID,
     APP_BASE_URL: APP_ORIGIN,
     CAFE24_CLIENT_ID: 'smoke-client-id',
@@ -427,6 +468,83 @@ async function main() {
       const res = await request(base, '/admin/cafe24');
       return all(res.status >= 300 && res.status < 400 ? true : `status ${res.status}`, (res.headers.location ?? '').endsWith('/login') || `location: ${res.headers.location}`);
     });
+
+    // 5-1) 준비 상태 점검 화면 · 설치 스크립트 (이 기능이 있는 프로젝트만 점검)
+    const hasSetupPage = existsSync(join(projectDir, 'src', 'app', 'admin', 'setup', 'page.tsx'));
+    const hasDbSetup = existsSync(join(projectDir, 'scripts', 'db-setup.mjs'));
+    if (!hasSetupPage) console.log('SKIP  /admin/setup 점검 — 이 프로젝트에 준비 상태 점검 화면이 없음(점수에 넣지 않음)');
+    if (hasSetupPage) {
+      const checksOf = (html) =>
+        Object.fromEntries([...html.matchAll(/data-check="([^"]+)" data-status="([a-z]+)"/g)].map((m) => [m[1], m[2]]));
+      await check('/admin/setup 관리자 → 환경변수·DB·관리자·카페24 점검, 실패 0', async () => {
+        const res = await request(base, '/admin/setup', { headers: admin });
+        const got = checksOf(res.text);
+        const fails = Object.entries(got).filter(([, v]) => v === 'fail').map(([k]) => k);
+        const need = ['env.NEXT_PUBLIC_SUPABASE_URL', 'env.SUPABASE_SECRET_KEY', 'env.CAFE24_TOKEN_ENCRYPTION_KEY', 'db.tables', 'db.lock_function', 'db.anon_blocked', 'admin.exists', 'cafe24.connection'];
+        return all(
+          expectEq('status', res.status, 200),
+          need.every((id) => id in got) || `항목 누락: ${need.filter((id) => !(id in got)).join(', ')}`,
+          ['db.tables', 'db.lock_function', 'db.anon_blocked', 'admin.exists'].every((id) => got[id] === 'ok') || `ok가 아님: ${JSON.stringify(got)}`,
+          fails.length === 0 || `fail: ${fails.join(', ')}`,
+        );
+      });
+      await check('/admin/setup 로그인 없음 → /login · 비관리자 → 권한 없음', async () => {
+        const anon = await request(base, '/admin/setup');
+        const other = await request(base, '/admin/setup', { headers: member });
+        return all(
+          anon.status >= 300 && anon.status < 400 ? true : `로그인 없음 status ${anon.status}`,
+          (anon.headers.location ?? '').endsWith('/login') || `location: ${anon.headers.location}`,
+          other.text.includes('관리자 권한이 없습니다') || '비관리자 안내 없음',
+          !/data-check=/.test(other.text) || '비관리자에게 점검 항목이 보임',
+        );
+      });
+      await check('/admin/setup 응답에 비밀값 없음', async () => {
+        const res = await request(base, '/admin/setup', { headers: admin });
+        const leaked = [FAKE_SECRET, env.CAFE24_CLIENT_SECRET, env.CAFE24_TOKEN_ENCRYPTION_KEY, FAKE_PUBLISHABLE].filter((v) => res.text.includes(v));
+        return leaked.length === 0 || `노출: ${leaked.length}개 값`;
+      });
+    }
+    if (hasDbSetup) {
+      await check('npm run db:setup (PGlite · 가짜 Auth) → 마이그레이션·스키마 확인·관리자 생성·ADMIN_USER_IDS 기록', async () => {
+        const dir = await mkdtemp(join(tmpdir(), 'makji-dbsetup-'));
+        const envFile = join(dir, 'env.local');
+        await writeFile(
+          envFile,
+          [`SUPABASE_DB_URL=pglite://memory`, `NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl}`, `SUPABASE_SECRET_KEY=${FAKE_SECRET}`, 'SETUP_ADMIN_EMAIL=new-admin@smoke.test', 'ADMIN_USER_IDS=pending', ''].join('\n'),
+        );
+        const runSetup = (args) =>
+          new Promise((ok) => {
+            const child = spawn(process.execPath, [join(projectDir, 'scripts', 'db-setup.mjs'), '--env-file', envFile, ...args], {
+              cwd: projectDir,
+              env: { PATH: process.env.PATH, HOME: process.env.HOME },
+              stdio: ['ignore', 'pipe', 'pipe'],
+            });
+            let out = '';
+            child.stdout.on('data', (d) => (out += d));
+            child.stderr.on('data', (d) => (out += d));
+            child.on('exit', (code) => ok({ code, out }));
+          });
+        try {
+          const first = await runSetup(['--generate-password']);
+          const created = authUsers.find((u) => u.email === 'new-admin@smoke.test');
+          const written = (await readFile(envFile, 'utf8')).match(/^ADMIN_USER_IDS=(.*)$/m)?.[1];
+          const second = await runSetup(['--check', '--skip-migrations']);
+          return all(
+            expectEq('exit', first.code, 0),
+            /OK +마이그레이션 0001_cafe24_lab\.sql — 적용함/.test(first.out) || '마이그레이션 적용 줄 없음',
+            /OK +브라우저 키\(anon\) 접근 차단/.test(first.out) || 'anon 차단 확인 줄 없음',
+            /SETUP: ok=\d+ warn=\d+ fail=0/.test(first.out) || `요약: ${first.out.split('\n').filter((l) => l.startsWith('FAIL') || l.startsWith('SETUP')).join(' | ')}`,
+            created ? true : '관리자 계정이 만들어지지 않음',
+            expectEq('ADMIN_USER_IDS', written, created?.id),
+            authUsers.filter((u) => u.email === 'new-admin@smoke.test').length === 1 || '관리자 계정이 중복 생성됨',
+            /이미 있음 — 바꾸지 않음/.test(second.out) || '두 번째 실행에서 기존 계정 인식 실패',
+            !first.out.includes(FAKE_SECRET) && !second.out.includes(FAKE_SECRET) || 'Secret key가 출력에 나옴',
+          );
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+        }
+      });
+    }
 
     // 6) 실제 상품 16 공개 페이지 사본 + 위젯 (헤드리스 Chrome)
     chrome = await launchChrome();

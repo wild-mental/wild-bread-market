@@ -13,9 +13,10 @@
 
 | 구분 | 상태 |
 |---|---|
-| 로컬 검증 | 끝남 — `npm test` 56개 통과, `npm run build`·`npm run lint` exit 0, `node scripts/smoke.mjs` 24/24 PASS |
+| 로컬 검증 | 끝남 — `npm test` 82개 통과, `npm run build`·`npm run lint` exit 0, `node scripts/smoke.mjs` 28/28 PASS |
 | MVP 체험 화면 `/` · `/predict` · `/result` | 환경변수 없이 동작 (목업 데이터) |
-| 관리 화면 `/admin/cafe24`와 연동 API | **환경변수가 없으면 500** — 이 문서의 작업을 해야 동작 |
+| 관리 화면 `/admin/cafe24`와 연동 API | 환경변수가 없으면 `/admin/cafe24`는 준비 상태 점검 화면 `/admin/setup`으로 이동하고, 관리 API는 500 — 이 문서의 작업을 해야 동작 |
+| 준비 자동화 | `npm run db:setup`(마이그레이션·관리자 계정 생성) · `npm run setup:check` · `/admin/setup`(점검 화면) |
 | 실제 Supabase·Vercel·카페24 | 아직 한 번도 연결하지 않음 |
 
 표기
@@ -26,7 +27,7 @@
 - ✅ **확인 기준** — 이 결과가 나와야 다음 단계로 간다
 
 > 비밀값은 네 가지다: Supabase **Secret key**, 카페24 **Client Secret**, **토큰 암호화 키**, 카페24가 발급한 **토큰**.
-> 여기에 계정 비밀번호(Supabase Database Password, 앱 관리자 계정 비밀번호)도 같은 수준으로 다룬다. 전체 규칙은 "2-1. 비밀값 관리".
+> 여기에 계정 비밀번호(Supabase Database Password, 앱 관리자 계정 비밀번호)와 DB 접속 문자열 `SUPABASE_DB_URL`도 같은 수준으로 다룬다. 전체 규칙은 "2-1. 비밀값 관리".
 > 에이전트에게 오류를 물어볼 때는 이 값들을 `(비밀값)`으로 지운 뒤 붙여 넣는다.
 > 체크리스트(`docs/HUMAN_TODO.md`)만으로 진행해도 되는지는 HUMAN_TODO 앞부분의 조건 10개로 판단한다.
 
@@ -90,7 +91,8 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
 | 값 | 만드는 곳 | 보관 | 넣는 곳 | 바꿔야 할 때 | 바꾼 뒤 할 일 |
 |---|---|---|---|---|---|
 | Supabase Database Password 🔑 | B-1 생성 화면 자동 생성 | 비밀번호 관리자 | (이 앱은 쓰지 않음) | 노출 · 담당자 변경 | Supabase 프로젝트 설정에서 재설정 |
-| 앱 관리자 계정 비밀번호 🔑 | B-3 사람이 정함 | 비밀번호 관리자 | `/login` 입력만 | 노출 · 담당자 변경 | Supabase Users에서 비밀번호 재설정 |
+| `SUPABASE_DB_URL` 🔑 (DB 비밀번호 포함) | B-2 Supabase Connect → Session pooler | 필요할 때만 `.env.local` | **내 컴퓨터 `.env.local`만** — Vercel 금지 | 노출 · DB 비밀번호 변경 | DB 비밀번호 재설정 → 새 문자열로 교체. 설치 끝나면 줄 삭제 |
+| 앱 관리자 계정 비밀번호 🔑 | B-2 `npm run db:setup` 입력(또는 `--generate-password`) · 수작업은 B-3 | 비밀번호 관리자 | `/login` 입력만 | 노출 · 담당자 변경 | Supabase Users에서 비밀번호 재설정 |
 | `SUPABASE_SECRET_KEY` 🔑 | B-1 API Keys | 비밀번호 관리자 | Vercel(Production) · `.env.local` | 노출 · 담당자 변경 · 정기 교체 | 새 키 발급 → Vercel 교체 → Redeploy → 동작 확인 → 이전 키 폐기 |
 | `CAFE24_CLIENT_SECRET` 🔑 | F-4 개발자센터 인증정보 | 비밀번호 관리자 | Vercel(Production) | 노출 · 담당자 변경 | 개발자센터에서 재발급(제공되는 방법으로) → Vercel 교체 → Redeploy → G-1 [연결 상태] 확인 |
 | `CAFE24_TOKEN_ENCRYPTION_KEY` 🔑 | B-4 내 터미널 | 비밀번호 관리자 | Vercel(Production) · `.env.local` | 노출 | 새 키 → Vercel 교체 → Redeploy → `cafe24_connections` 행 삭제 → G-1 재연결 (옛 키로 암호화한 토큰은 새 키로 풀 수 없다) |
@@ -124,7 +126,7 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
    npm test && npm run build && npm run lint && node scripts/smoke.mjs
    ```
 
-   ✅ 마지막 줄 `SMOKE: 24/24 PASS`
+   ✅ 마지막 줄 `SMOKE: 28/28 PASS`
 
 3. 💻 커밋되지 않은 변경이 없는지 본다. `git status --short`가 비어 있어야 한다.
 
@@ -143,7 +145,42 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
 
 > anon / service_role 키만 보이는 예전 방식 프로젝트라면 Publishable 자리에 anon, Secret 자리에 service_role을 넣으면 같은 코드로 동작한다.
 
-### B-2. 테이블 만들기 (가이드 4-2)
+### B-2. 테이블·관리자 계정 한 번에 준비 — `npm run db:setup` (권장 · 가이드 4-2 · 4-3)
+
+사람이 **자기 컴퓨터 터미널**에서 실행한다. DB 비밀번호가 든 값을 쓰므로 AI 에이전트에게 맡기지 않는다.
+
+1. 🧑 Supabase 대시보드 상단 **Connect** → **Session pooler** 탭의 접속 문자열을 복사한다(주소가 `…pooler.supabase.com:5432`). Direct connection 주소는 IPv6만 되는 네트워크가 있어 접속이 안 될 수 있다.
+2. 🔑 `.env.local`(없으면 `cp .env.example .env.local`)에 넣는다.
+
+   ```text
+   SUPABASE_DB_URL=복사한 문자열([YOUR-PASSWORD] 자리를 B-1 DB 비밀번호로)
+   NEXT_PUBLIC_SUPABASE_URL=B-1 Project URL
+   SUPABASE_SECRET_KEY=B-1 Secret key
+   SETUP_ADMIN_EMAIL=관리자 이메일
+   ADMIN_USER_IDS=pending
+   ```
+
+3. 🔑 내 터미널에서 실행한다.
+
+   ```bash
+   npm run db:setup
+   ```
+
+   - 관리자 계정이 없으면 비밀번호를 두 번 묻는다(화면에 표시되지 않음, 12자 이상). 비밀번호 관리자로 만든 값을 붙여 넣는다.
+   - 비밀번호를 스크립트가 만들게 하려면 `npm run db:setup -- --generate-password` — 끝에 **한 번만** 화면에 나오므로 바로 비밀번호 관리자에 저장하고 `clear`로 화면을 지운다.
+4. ✅ 출력에서 확인한다.
+   - `OK  마이그레이션 0001_cafe24_lab.sql — 적용함`(두 번째 실행부터는 `이미 적용됨`)
+   - `OK  테이블 3개` · `RLS 켜짐` · `토큰 갱신 잠금 함수` · `브라우저 키(anon) 접근 차단` · `서버 키(service_role) 쓰기 권한`
+   - `OK  관리자 계정 — 새로 만듦(이메일 확인 처리) · UUID …` (이미 있으면 `이미 있음 — 바꾸지 않음`)
+   - `OK  ADMIN_USER_IDS — …에 기록함`, 마지막 줄 `SETUP: … fail=0`
+   - `[1] 환경변수`의 WARN(APP_BASE_URL·암호화 키 등 비어 있음)은 로컬 파일 기준 안내라 이 단계에서는 무시해도 된다.
+5. 💻 아무것도 바꾸지 않고 다시 확인만 하려면 `npm run setup:check`.
+6. 🔑 설치가 끝나면 `.env.local`에서 `SUPABASE_DB_URL` 줄을 지운다(다음 마이그레이션 때 다시 넣는다). Vercel에는 절대 넣지 않는다.
+
+> 적용 기록은 API로 노출되지 않는 `lab_private.schema_migrations`에 남는다. 이미 적용한 SQL 파일을 고치면 스크립트가 멈추므로, 스키마를 바꿀 때는 `0002_…sql`처럼 새 번호 파일을 추가한다.
+> 이 스크립트는 로컬 PGlite(Postgres 와이어 프로토콜 서버 포함)와 가짜 Auth 서버로 검증했다. 실제 Supabase Session pooler 접속은 이 프로토타입 작업에서 확인하지 않았다.
+
+**수작업으로 할 때 (SQL Editor · 가이드 4-2)**
 
 1. 🧑 **SQL Editor → New query**
 2. 🧑 `supabase/migrations/0001_cafe24_lab.sql` 전체를 붙여 넣고 **Run**
@@ -161,7 +198,7 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
 ✅ 테이블 `cafe24_change_log` · `cafe24_connections` · `cafe24_products` 3개, `anon_can_read = false`
 Table Editor의 "RLS enabled, no policies" 표시는 의도한 상태다(브라우저 키로는 접근 불가, 앱 서버만 Secret key로 접근).
 
-### B-3. 관리자 계정 (가이드 4-3)
+### B-3. 관리자 계정을 수작업으로 만들 때 (가이드 4-3 · B-2 스크립트를 쓰면 건너뜀)
 
 1. 🧑 **Authentication → Users → Add user → Create new user**
 2. 🧑 관리자 이메일·강한 비밀번호 입력, **Auto Confirm User** 체크 → **Create user**. 🔑 비밀번호는 비밀번호 관리자에 저장
@@ -250,6 +287,8 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ## E. 관리자 UUID와 앱 주소 등록 (가이드 5-3)
 
+> B-2 `npm run db:setup`을 썼다면 출력의 `관리자 계정 — … UUID …` 값을 바로 `ADMIN_USER_IDS`에 넣으면 되므로 1·2번은 건너뛴다.
+
 1. 🧑 `https://(내 앱 주소)/login`에서 B-3 계정으로 로그인
 2. 🧑 자동으로 이동한 "관리자 권한이 없습니다" 화면의 UUID를 복사한다(B-3의 UID와 같아야 한다).
 3. 🧑 Vercel **Settings → Environment Variables**
@@ -262,8 +301,22 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 | 증상 | 해결 |
 |---|---|
-| 로그인 후 500 | Vercel → Logs에서 `환경변수 ○○이(가) 비어 있습니다.`를 찾아 채우고 Redeploy |
+| 로그인 후 500 | 배포 주소 `/admin/setup`에서 "필요" 항목을 채우고 Redeploy. 그래도 500이면 Vercel → Logs에서 `환경변수 ○○이(가) 비어 있습니다.` 확인 |
 | 계속 권한 없음 화면 | UUID 앞뒤 공백·쉼표 확인, Redeploy 했는지 확인 |
+
+### E-1. 준비 상태 점검 화면 확인
+
+🧑 `https://(내 앱 주소)/admin/setup`을 연다(관리자 로그인 필요 — `ADMIN_USER_IDS` 설정 전에는 로그인 없이 열린다).
+
+| 구역 | ✅ 이 단계에서의 기준 |
+|---|---|
+| 1. 환경변수 | Supabase 3개 · `ADMIN_USER_IDS` · `APP_BASE_URL` · `CAFE24_TOKEN_ENCRYPTION_KEY` OK. `CAFE24_CLIENT_ID`·`CAFE24_CLIENT_SECRET`은 "확인"(F-4 전) |
+| 2. Supabase DB | 테이블 3개 · 잠금 함수 · 브라우저 키 접근 차단 OK |
+| 3. 관리자 계정 | OK (UUID가 모두 이메일 확인된 계정) |
+| 4. 카페24 | Redirect URI 안내가 내 앱 주소 기준 · 연결은 "확인"(G-1 전) |
+
+- 화면은 값을 보여 주지 않고 상태만 보여 준다. "다음에 할 일" 줄이 가장 먼저 고칠 항목이다.
+- `SUPABASE_DB_URL` 경고가 보이면 Vercel 환경변수에서 지우고 Redeploy.
 
 ---
 
@@ -307,7 +360,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 3. 🧑 **Redeploy**
 4. 🧑 `/admin/cafe24` → **1. 연결 → [연결 상태]**
 
-✅ 결과 `{"mallId": "wildmental", "connected": false}` (연결 전이라 false가 정상)
+✅ 결과 `{"mallId": "wildmental", "connected": false}` (연결 전이라 false가 정상) · `/admin/setup`에서 `CAFE24_CLIENT_ID`·`CAFE24_CLIENT_SECRET`이 OK
 
 이 시점의 Vercel 환경변수는 8개다.
 
@@ -452,7 +505,12 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 | `CAFE24_422` 502 | 가격 계산 기준이 세금 제외 방식 등 | 가이드 7-5 참고(`price_excluding_tax`) |
 | `CAFE24_429` 502 | 호출 한도 초과 | 메시지의 초만큼 기다리고 한 번만 |
 | `EDITED_ELSEWHERE` 409 | 마지막 적용 뒤 누군가 직접 수정 | 쇼핑몰 관리자에서 값 정리 후 복원 |
-| `INTERNAL` 500 | 환경변수 누락, DB 오류 | Vercel Logs에서 `환경변수 ○○이(가) 비어 있습니다` 또는 `[cafe24]` 줄 |
+| `INTERNAL` 500 | 환경변수 누락, DB 오류 | `/admin/setup`의 "필요" 항목, Vercel Logs의 `환경변수 ○○이(가) 비어 있습니다` 또는 `[cafe24]` 줄 |
+| `db:setup` · `FAIL DB 작업 — 실패 (ENOTFOUND 등)` | Direct connection 주소를 IPv6가 없는 네트워크에서 사용 | Connect 화면의 **Session pooler** 문자열로 바꾸기 |
+| `db:setup` · `실패 (28P01)` | DB 비밀번호 틀림 | Supabase 프로젝트 설정에서 DB 비밀번호 확인·재설정 후 문자열 교체 |
+| `db:setup` · `마이그레이션 … 적용한 뒤 파일 내용이 바뀜` | 이미 적용한 SQL 파일을 수정함 | 수정을 되돌리고 새 번호 SQL 파일로 추가 |
+| `db:setup` · `관리자 계정 — 실패 (NO_TTY)` | 비밀번호를 입력받을 수 없는 환경(IDE 실행 버튼 등) | 터미널에서 직접 실행하거나 `-- --generate-password` |
+| `db:setup` · `관리자 계정 — 실패 (AUTH_…)` | Secret key 자리에 Publishable key 등 | `SUPABASE_SECRET_KEY` · `NEXT_PUBLIC_SUPABASE_URL` 확인 |
 | 공개 API `UNAVAILABLE` 503 | Supabase 값 또는 B-2 테이블 문제 | Vercel 환경변수·SQL 실행 확인 |
 | 위젯이 안 보임 | 설치·로드·CORS·상품번호 중 하나 | ① `curl -sI $APP/widgets/makji-bread.js` 200 ② [설치 확인]에 1개 ③ 상품 페이지 소스에 `makji-bread.js` ④ Network의 `bread-widget` 200 (CORS 오류면 "3. 운영 전에 추가로 챙길 것" 2번) ⑤ 같은 탭에서 × 로 닫았으면 새 시크릿 창 |
 
@@ -489,10 +547,10 @@ Vercel Logs의 [cafe24] 줄: [토큰·code·Secret 제거 후 붙여넣기]
 ## 6. 완료 체크
 
 - [ ] A 상품 16 원래 값 기록, 로컬 `SMOKE: 24/24 PASS`
-- [ ] B Supabase 테이블 3개 · `anon_can_read = false` · 관리자 계정(비밀번호 보관) · Secret key·암호화 키 보관
+- [ ] B `npm run db:setup` `fail=0`(또는 SQL Editor 수작업) · 관리자 계정(비밀번호 보관) · Secret key·암호화 키 보관 · `.env.local`의 `SUPABASE_DB_URL` 삭제
 - [x] C GitHub 공개 저장소 `wild-mental/wild-bread-market`에 push, `.env.local` 없음
 - [ ] D Vercel 1차 배포, Production 주소에서 `/` · `/predict` · `/result` 확인
-- [ ] E `/admin/cafe24` 관리 화면 열림
+- [ ] E `/admin/cafe24` 관리 화면 열림 · `/admin/setup` 필요(fail) 0
 - [ ] F 카페24 앱 URL 2개 · 권한 4종 · API 버전 · Client 값, `connected: false` 응답
 - [ ] G `connected: true` · 조회 · 기준값 · up `applied→already` · 판매가 4,940원 · 복원 5,200원
 - [ ] H 공개 API·JS 확인 · 위젯 설치 · PC/모바일 카드 · 앱 ↔ 자사몰 링크
