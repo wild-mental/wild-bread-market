@@ -5,9 +5,9 @@
 | 문서 | 역할 |
 |---|---|
 | 이 문서 | 단계별 작업 방법, 확인 기준, 막힐 때 대처 |
-| `docs/HUMAN_TODO.md` | 같은 작업의 짧은 체크리스트(TODO-01~26) |
+| `docs/HUMAN_TODO.md` | 같은 작업의 짧은 체크리스트(TODO-00~30). 이 문서 없이 체크리스트만으로 진행해도 되는 조건도 적혀 있다 |
 | `docs/live-test-report.md` | 실제 연동 결과를 적는 기록표 |
-| [MAKJI_Cafe24_MVP_교육가이드.html](https://wild-mental.github.io/sesac-4th-corp-rfp/docs/guides/MAKJI_Cafe24_MVP_%EA%B5%90%EC%9C%A1%EA%B0%80%EC%9D%B4%EB%93%9C.html) (발표 저장소 `wild-mental/sesac-4th-corp-rfp`의 `docs/guides/`) | 화면별 상세 설명. 이 문서의 `(가이드 6-1)` 같은 표기가 그 쪽 번호 |
+| [MAKJI_Cafe24_MVP_교육가이드.html](https://wild-mental.github.io/sesac-4th-corp-rfp/docs/guides/MAKJI_Cafe24_MVP_%EA%B5%90%EC%9C%A1%EA%B0%80%EC%9D%B4%EB%93%9C.html) (v3 · 발표 저장소 `wild-mental/sesac-4th-corp-rfp`의 `docs/guides/`) | 화면별 상세 설명. 이 문서의 `(가이드 7-1)` 같은 표기가 그 쪽 번호 |
 
 ## 0. 현재 상태와 남은 범위
 
@@ -26,7 +26,9 @@
 - ✅ **확인 기준** — 이 결과가 나와야 다음 단계로 간다
 
 > 비밀값은 네 가지다: Supabase **Secret key**, 카페24 **Client Secret**, **토큰 암호화 키**, 카페24가 발급한 **토큰**.
+> 여기에 계정 비밀번호(Supabase Database Password, 앱 관리자 계정 비밀번호)도 같은 수준으로 다룬다. 전체 규칙은 "2-1. 비밀값 관리".
 > 에이전트에게 오류를 물어볼 때는 이 값들을 `(비밀값)`으로 지운 뒤 붙여 넣는다.
+> 체크리스트(`docs/HUMAN_TODO.md`)만으로 진행해도 되는지는 HUMAN_TODO 앞부분의 조건 10개로 판단한다.
 
 ---
 
@@ -74,11 +76,46 @@ Vercel Production 주소    : https://__________.vercel.app      (해시 없는 
 
 Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자**에만 둔다.
 
+### 2-1. 비밀값 관리
+
+**원칙**
+
+1. 비밀값은 만든 사람이 곧바로 **비밀번호 관리자**(1Password · Bitwarden · macOS 암호 등)에 넣고, 그 밖의 곳에는 **입력만** 한다(Vercel 환경변수, 내 컴퓨터 `.env.local`).
+2. AI 에이전트 대화 · 채팅 · 메일 · 이슈 · 커밋 · 캡처 · 팀 노트에 붙여 넣지 않는다. 에이전트가 요구하면 멈추고 사람이 직접 입력한다.
+3. 팀원과 공유할 때는 값을 보내지 않는다. 각 서비스(GitHub · Vercel · Supabase · 카페24 개발자센터)의 **멤버 초대**로 권한을 주거나, 비밀번호 관리자의 **팀 공유 금고**를 쓴다.
+4. 계정 비밀번호가 걸린 서비스는 모두 **2단계 인증**을 켠다(각 서비스 계정 보안 설정).
+
+**목록**
+
+| 값 | 만드는 곳 | 보관 | 넣는 곳 | 바꿔야 할 때 | 바꾼 뒤 할 일 |
+|---|---|---|---|---|---|
+| Supabase Database Password 🔑 | B-1 생성 화면 자동 생성 | 비밀번호 관리자 | (이 앱은 쓰지 않음) | 노출 · 담당자 변경 | Supabase 프로젝트 설정에서 재설정 |
+| 앱 관리자 계정 비밀번호 🔑 | B-3 사람이 정함 | 비밀번호 관리자 | `/login` 입력만 | 노출 · 담당자 변경 | Supabase Users에서 비밀번호 재설정 |
+| `SUPABASE_SECRET_KEY` 🔑 | B-1 API Keys | 비밀번호 관리자 | Vercel(Production) · `.env.local` | 노출 · 담당자 변경 · 정기 교체 | 새 키 발급 → Vercel 교체 → Redeploy → 동작 확인 → 이전 키 폐기 |
+| `CAFE24_CLIENT_SECRET` 🔑 | F-4 개발자센터 인증정보 | 비밀번호 관리자 | Vercel(Production) | 노출 · 담당자 변경 | 개발자센터에서 재발급(제공되는 방법으로) → Vercel 교체 → Redeploy → G-1 [연결 상태] 확인 |
+| `CAFE24_TOKEN_ENCRYPTION_KEY` 🔑 | B-4 내 터미널 | 비밀번호 관리자 | Vercel(Production) · `.env.local` | 노출 | 새 키 → Vercel 교체 → Redeploy → `cafe24_connections` 행 삭제 → G-1 재연결 (옛 키로 암호화한 토큰은 새 키로 풀 수 없다) |
+| 카페24 access/refresh 토큰 🔑 | G-1 연결 시 서버가 받음 | Supabase `cafe24_connections`에 AES-256-GCM 암호문으로만 | 사람이 다루지 않음 | 앱 권한 변경 · 노출 의심 | `cafe24_connections` 행 삭제 → G-1 재연결 |
+| `NEXT_PUBLIC_SUPABASE_URL` · `…PUBLISHABLE_KEY` · `CAFE24_CLIENT_ID` · `ADMIN_USER_IDS` · `APP_BASE_URL` | 각 단계 | 값 기록표 | Vercel(모든 환경 가능) | 설정 변경 | Redeploy (`NEXT_PUBLIC_`은 빌드에 박힘) |
+
+**Vercel에 넣을 때**
+
+- 입력 화면에서 적용 환경(Production · Preview · Development)을 고를 수 있다. 🔑 값은 **Production에만** 넣는다. Preview 배포에서 실제 쇼핑몰을 건드리지 않게 하려는 것이다.
+- 입력 화면에 **Sensitive** 옵션이 있으면 켠다(저장 뒤 대시보드에서 값을 다시 볼 수 없게 하는 설정). 화면 구성은 바뀔 수 있으니 [Vercel 환경변수 문서](https://vercel.com/docs/environment-variables)로 확인한다.
+- 값을 바꾼 뒤에는 반드시 Redeploy 해야 새 값이 적용된다.
+
+**끝낼 때 · 사람이 바뀔 때**
+
+- 실습이 끝나면 내 컴퓨터의 `.env.local`을 지운다(I-2).
+- 팀원이 빠지면 각 서비스 멤버 권한을 회수하고, 그 사람이 본 🔑 값은 교체를 검토한다.
+- 노출(커밋·채팅·캡처·AI 대화)이 의심되면 **삭제만으로 끝내지 않고** 위 표의 "바꾼 뒤 할 일"대로 즉시 교체한다. 공개 저장소는 push 직후 복제·수집될 수 있다.
+
+> 확인 범위: 이 표의 보관·입력·교체 순서는 코드와 설정 구조에서 정한 것이다. 각 서비스의 키 재발급·폐기 화면, Vercel Sensitive 옵션 위치, 2단계 인증 메뉴는 이 프로토타입 작업에서 실제 계정으로 확인하지 않았다. 화면이 다르면 각 서비스 공식 문서를 따른다.
+
 ---
 
 ## A. 준비와 로컬 최종 확인
 
-1. 🧑 쇼핑몰 관리자에서 상품 16(향기로운 허브 쌀치아바타 · `P000000Q`)의 **판매가와 요약설명**을 값 기록표에 적는다. 나중에 복원 결과와 비교하는 기준이다. (가이드 1-5)
+1. 🧑 쇼핑몰 관리자에서 상품 16(향기로운 허브 쌀치아바타 · `P000000Q`)의 **판매가와 요약설명**을 값 기록표에 적는다. 나중에 복원 결과와 비교하는 기준이다. (가이드 1-4)
 2. 💻 프로토타입 폴더에서 로컬 검증을 다시 돌린다.
 
    ```bash
@@ -95,18 +132,18 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
 
 ## B. Supabase 클라우드
 
-### B-1. 프로젝트 만들기 (가이드 3-1)
+### B-1. 프로젝트 만들기 (가이드 4-1)
 
 1. 🧑 [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**
 2. 🧑 Name `wild-bread-market`, Region **Northeast Asia (Seoul)**, Database Password는 **Generate a password** → 🔑 비밀번호 관리자에 저장 → **Create new project**
 3. 🧑 **Project Settings → API Keys**에서 두 키를 확인한다.
    - Publishable key `sb_publishable_…` (공개돼도 됨)
-   - 🔑 Secret key `sb_secret_…` (서버 전용)
+   - 🔑 Secret key `sb_secret_…` (서버 전용) → 곧바로 비밀번호 관리자에 저장
 4. 🧑 상단 **Connect** 버튼(또는 Project Settings → Data API)에서 Project URL `https://….supabase.co`를 값 기록표에 적는다.
 
 > anon / service_role 키만 보이는 예전 방식 프로젝트라면 Publishable 자리에 anon, Secret 자리에 service_role을 넣으면 같은 코드로 동작한다.
 
-### B-2. 테이블 만들기 (가이드 3-2)
+### B-2. 테이블 만들기 (가이드 4-2)
 
 1. 🧑 **SQL Editor → New query**
 2. 🧑 `supabase/migrations/0001_cafe24_lab.sql` 전체를 붙여 넣고 **Run**
@@ -124,17 +161,17 @@ Secret key · Client Secret · 토큰 암호화 키는 **비밀번호 관리자*
 ✅ 테이블 `cafe24_change_log` · `cafe24_connections` · `cafe24_products` 3개, `anon_can_read = false`
 Table Editor의 "RLS enabled, no policies" 표시는 의도한 상태다(브라우저 키로는 접근 불가, 앱 서버만 Secret key로 접근).
 
-### B-3. 관리자 계정 (가이드 3-3)
+### B-3. 관리자 계정 (가이드 4-3)
 
 1. 🧑 **Authentication → Users → Add user → Create new user**
-2. 🧑 관리자 이메일·강한 비밀번호 입력, **Auto Confirm User** 체크 → **Create user**
+2. 🧑 관리자 이메일·강한 비밀번호 입력, **Auto Confirm User** 체크 → **Create user**. 🔑 비밀번호는 비밀번호 관리자에 저장
 3. 🧑 목록의 **UID**를 값 기록표에 적는다.
 
 ✅ 사용자 상태가 Confirmed
 
 **권장(가이드에 없는 추가 보안)**: 🧑 Authentication 설정의 Sign In / Providers에서 **Allow new users to sign up**을 끈다(대시보드 버전에 따라 메뉴 이름이 조금 다를 수 있다). 이 앱은 `/login`에서 로그인만 하고 가입 화면이 없으므로 끄더라도 동작에 영향이 없다. 관리 API는 어차피 `ADMIN_USER_IDS`로 막히지만, 모르는 계정이 생기지 않게 하는 편이 안전하다.
 
-### B-4. 토큰 암호화 키 (가이드 3-4)
+### B-4. 토큰 암호화 키 (가이드 4-4)
 
 🔑 **본인 터미널에서 직접** 실행하고, 결과(=로 끝나는 44글자)를 비밀번호 관리자에 저장한다. 에이전트에게 실행을 맡기지 않는다(출력이 대화에 남는다).
 
@@ -158,7 +195,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ---
 
-## C. GitHub 저장소 (가이드 4-1)
+## C. GitHub 저장소 (가이드 5-1)
 
 이 폴더는 독립 git 저장소이고, **공개 저장소 [wild-mental/wild-bread-market](https://github.com/wild-mental/wild-bread-market)에 이미 push되어 있다**(상위 `sesac-4th-corp-rfp` 저장소는 이 폴더를 무시한다). 새로 만들 필요는 없다.
 
@@ -186,12 +223,12 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ---
 
-## D. Vercel 1차 배포 (가이드 4-2)
+## D. Vercel 1차 배포 (가이드 5-2)
 
 1. 🧑 [vercel.com/new](https://vercel.com/new) → `wild-bread-market` 저장소 **Import**
 2. 🧑 Framework Preset **Next.js**, Root Directory **`./`** 확인
 3. 🧑 (권장) 프로젝트 생성 후 **Settings → Build and Deployment → Node.js Version**을 로컬과 같은 **24.x**로 맞춘다.
-4. 🔑 **Environment Variables**에 아래 5개를 넣는다.
+4. 🔑 **Environment Variables**에 아래 5개를 넣는다. 🔑 표시 값은 적용 환경을 **Production만** 고르고, Sensitive 옵션이 보이면 켠다(2-1).
 
    | 이름 | 값 |
    |---|---|
@@ -211,7 +248,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ---
 
-## E. 관리자 UUID와 앱 주소 등록 (가이드 4-3)
+## E. 관리자 UUID와 앱 주소 등록 (가이드 5-3)
 
 1. 🧑 `https://(내 앱 주소)/login`에서 B-3 계정으로 로그인
 2. 🧑 자동으로 이동한 "관리자 권한이 없습니다" 화면의 UUID를 복사한다(B-3의 UID와 같아야 한다).
@@ -232,12 +269,12 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ## F. 카페24 개발자센터 앱 등록과 2차 배포
 
-### F-1. 개발사(자) 등록 (가이드 5-1)
+### F-1. 개발사(자) 등록 (가이드 6-1)
 
 🧑 [developers.cafe24.com](https://developers.cafe24.com) 로그인 → 처음이면 개발사(자) 등록 약관 동의 → 정보 입력 → 등록 완료. 개발자 어드민 왼쪽 메뉴에 **Apps**가 보이면 된다.
 개발자 계정이 `wildmental`이 아니어도 괜찮다. 설치 동의만 G-1에서 `wildmental` 대표운영자로 한다.
 
-### F-2. 앱 만들기 (가이드 5-2)
+### F-2. 앱 만들기 (가이드 6-2)
 
 🧑 **Apps → App 관리 → [ADD PRODUCT]**
 
@@ -250,7 +287,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 > Redirect URI는 한 글자도 달라서는 안 된다. 서버는 `APP_BASE_URL` + `/api/cafe24/oauth/callback`을 보낸다. http/https, 도메인, 경로, 끝의 `/`가 다르면 `invalid_request`.
 
-### F-3. 권한과 API 버전 (가이드 5-3)
+### F-3. 권한과 API 버전 (가이드 6-3)
 
 🧑 **Apps → App 관리 → MAKJI LAB → STEP 1. 개발정보 관리**
 
@@ -263,10 +300,10 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 - 같은 화면 **인증정보 → 버전관리** 값이 `2026-09-01`이 아니면 `lab-config.ts`의 `CAFE24_API_VERSION`을 그 값으로 바꾸고 커밋·push·재배포한다.
 - 연결한 뒤 권한을 바꾸면 G-1 연결을 다시 해야 새 권한이 적용된다.
 
-### F-4. Client ID/Secret 등록 · 2차 배포 (가이드 5-4)
+### F-4. Client ID/Secret 등록 · 2차 배포 (가이드 6-4)
 
-1. 🔑 **STEP 1. 개발정보 관리 → 인증정보**의 Client ID와 Client Secret Key를 확인한다.
-2. 🔑 Vercel Environment Variables에 `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET` 추가
+1. 🔑 **STEP 1. 개발정보 관리 → 인증정보**의 Client ID와 Client Secret Key를 확인하고, Client Secret은 비밀번호 관리자에 저장한다.
+2. 🔑 Vercel Environment Variables에 `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET` 추가 (Client Secret은 Production만 · Sensitive)
 3. 🧑 **Redeploy**
 4. 🧑 `/admin/cafe24` → **1. 연결 → [연결 상태]**
 
@@ -289,7 +326,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ## G. 카페24 연결과 상품 16 실연동
 
-### G-1. 앱 설치(테스트 실행)와 연결 (가이드 6-1)
+### G-1. 앱 설치(테스트 실행)와 연결 (가이드 7-1)
 
 1. 🧑 개발자 어드민 **MAKJI LAB → STEP 01. 개발정보 관리 → [테스트 실행]** → 쇼핑몰 ID `wildmental` → **[실행]**
 2. 🧑 쇼핑몰 관리자 로그인 화면에서 **wildmental 대표운영자**로 로그인 → 앱 설치 동의
@@ -301,7 +338,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 > [카페24 연결하기]를 연달아 누르지 않는다. 카페24는 **토큰 요청을 2시간에 최대 15회**로 제한하고 넘으면 앱을 일시 차단할 수 있다. 인증 코드는 1분 안에 교환된다.
 
-### G-2 ~ G-6. 상품 16 조회·수정·복원 (가이드 6-2 ~ 6-6)
+### G-2 ~ G-6. 상품 16 조회·수정·복원 (가이드 7-2 ~ 7-6)
 
 모두 `/admin/cafe24`의 버튼으로 한다. 결과는 화면 아래 "결과" 칸에 JSON으로 나온다.
 
@@ -321,7 +358,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ## H. 상품 상세 위젯과 앱 링크
 
-### H-1. 설치 전 확인 (가이드 7-2)
+### H-1. 설치 전 확인 (가이드 8-2)
 
 💻 비밀값이 없는 명령이다.
 
@@ -334,13 +371,13 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 
 ✅ ① `200`, `access-control-allow-origin: https://wildmental.cafe24.com`, JSON `productNo 16 · 102.4 · UP` ② `{"error":"NOT_REGISTERED"}` ③ `200` · `application/javascript`
 
-### H-2. Scripttags로 설치 (가이드 7-3)
+### H-2. Scripttags로 설치 (가이드 8-3)
 
 🧑 4. 상품 상세 위젯 → **[설치 확인]**(`"installed": []`) → **[위젯 설치]**(`"result": "installed"`) → 한 번 더(`"already"`)
 
 > 스크립트 등록 API는 호출 한도가 작다. `CAFE24_429`가 나면 메시지의 초만큼 기다린 뒤 한 번만 누른다.
 
-### H-3. 손님 화면 확인 (가이드 7-4)
+### H-3. 손님 화면 확인 (가이드 8-4)
 
 1. 🧑 시크릿 창에서 [상품 16 상세](https://wildmental.cafe24.com/product/%ED%96%A5%EA%B8%B0%EB%A1%9C%EC%9A%B4-%ED%97%88%EB%B8%8C-%EC%8C%80%EC%B9%98%EC%95%84%EB%B0%94%ED%83%80/16/category/81/display/1/)를 연다(설치 직후면 1분 뒤 새로고침).
 2. ✅ 오른쪽 아래 카드: `MAKJI 브레드마켓 · 실습 데이터` / `통밀 브레드 지수` / `102.4 ▲1.2%` / `[오늘의 UP/DOWN 예측하기 →]`
@@ -348,7 +385,7 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 4. ✅ 개발자 도구 기기 모드 390px에서 카드가 구매 버튼을 가리지 않음
 5. ✅ 다른 상품 상세에서는 카드가 뜨지 않음
 
-### H-4. 앱 → 자사몰 링크 (가이드 8-1)
+### H-4. 앱 → 자사몰 링크 (가이드 9-1)
 
 🧑 `https://(내 앱 주소)/`의 통밀 브레드 지수 카드 → **오늘의 브레드 보러 가기 (자사몰 상품 16) →**
 ✅ 새 탭에 향기로운 허브 쌀치아바타 상세(5,200원)가 열리고 주소에 `utm_medium=index_card`
@@ -357,12 +394,12 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 
 ## I. 기록과 정리
 
-### I-1. 검증 기록 (가이드 9-2)
+### I-1. 검증 기록 (가이드 10-2)
 
 🧑 `docs/live-test-report.md`의 표를 채운다. 실행하지 못한 항목은 통과로 적지 않고 "미실행"으로 적는다.
 캡처 3장(관리 화면 적용 결과 · 쇼핑몰 관리자 판매가 4,940 · 모바일 위젯)에 Client Secret·토큰이 보이지 않게 한다.
 
-### I-2. 실습 종료 정리 (가이드 9-3) — 연동을 계속 운영할 거라면 3·4는 하지 않는다
+### I-2. 실습 종료 정리 (가이드 10-3) — 연동을 계속 운영할 거라면 3·4는 하지 않는다
 
 1. 🧑 [기준값으로 복원] → [상품 조회]로 `current.price` 5200
 2. 🧑 [위젯 삭제](`"result": "removed"`) → [설치 확인]으로 빈 목록
@@ -372,6 +409,9 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
    ```sql
    delete from public.cafe24_connections where mall_id = 'wildmental';
    ```
+
+5. 💻 내 컴퓨터의 `.env.local`을 지운다(B-5를 했을 때). 연동을 계속 운영하더라도 로컬 사본은 필요할 때만 만든다.
+6. 🧑 실습용으로 초대한 팀원 권한을 회수한다(2-1).
 
 ---
 
@@ -387,7 +427,7 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 | 4 | 카페24 앱 운영 형태 | 지금 절차는 개발자센터의 **테스트 실행** 설치다. 테스트 앱을 장기 운영해도 되는지, 정식 운영 시 필요한 앱 검수·공개 절차가 있는지 카페24 개발자센터 문서로 확인한다 |
 | 5 | Supabase 가입 차단 | B-3 권장 설정(Allow new users to sign up 끄기) 적용 여부 확인 |
 | 6 | Vercel 배포 보호 | Production 도메인이 로그인 없이 열리는지 확인(위젯·OAuth 콜백이 여기에 의존) |
-| 7 | 비밀값 노출 대응 | GitHub·채팅·캡처에 Secret이 올라갔다면 삭제만으로 끝내지 말고 Supabase·카페24에서 재발급 → Vercel 값 교체 → Redeploy |
+| 7 | 비밀값 노출 대응 · 교체 | GitHub·채팅·캡처·AI 대화에 🔑 값이 올라갔다면 삭제만으로 끝내지 말고 2-1 표의 "바꾼 뒤 할 일"대로 교체. 계정 2단계 인증, 멤버 권한, Vercel 적용 환경·Sensitive 설정도 2-1대로 점검 |
 | 8 | 목업 규칙 확정 | 회차 마감 시각(목업 09:00 KST), 보합 판정(목업: 무효) — `docs/DECISION_LOG.md` MINOR-02·07, HUMAN_TODO TODO-25·26 |
 | 9 | Supabase 무료 플랜 | 무료 프로젝트는 일정 기간 활동이 없으면 일시 정지될 수 있다. 시연 직전 대시보드에서 프로젝트 상태 확인 |
 
@@ -395,7 +435,7 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 
 ## 4. 막히면
 
-관리 화면 맨 위 "연결 결과" 또는 결과 칸의 `error.code`로 찾는다. 전체 표는 가이드 10-1 ~ 10-3.
+관리 화면 맨 위 "연결 결과" 또는 결과 칸의 `error.code`로 찾는다. 전체 표는 가이드 11-2 ~ 11-4.
 
 | 값 | 원인 | 해결 |
 |---|---|---|
@@ -409,7 +449,7 @@ curl -sI "$APP/widgets/makji-bread.js" | head -3
 | `BASELINE_REQUIRED` 409 | 기준값 저장 전에 적용 | G-3 |
 | `NOT_IN_CATEGORY` / `PRODUCT_MISMATCH` 409 | 상품 16의 분류·상품코드가 바뀜 | 쇼핑몰 관리자에서 상품 16 확인 |
 | `CAFE24_403` 502 | scope 없음, 앱 삭제됨 | F-3 → G-1 재연결 |
-| `CAFE24_422` 502 | 가격 계산 기준이 세금 제외 방식 등 | 가이드 6-5 참고(`price_excluding_tax`) |
+| `CAFE24_422` 502 | 가격 계산 기준이 세금 제외 방식 등 | 가이드 7-5 참고(`price_excluding_tax`) |
 | `CAFE24_429` 502 | 호출 한도 초과 | 메시지의 초만큼 기다리고 한 번만 |
 | `EDITED_ELSEWHERE` 409 | 마지막 적용 뒤 누군가 직접 수정 | 쇼핑몰 관리자에서 값 정리 후 복원 |
 | `INTERNAL` 500 | 환경변수 누락, DB 오류 | Vercel Logs에서 `환경변수 ○○이(가) 비어 있습니다` 또는 `[cafe24]` 줄 |
@@ -449,7 +489,7 @@ Vercel Logs의 [cafe24] 줄: [토큰·code·Secret 제거 후 붙여넣기]
 ## 6. 완료 체크
 
 - [ ] A 상품 16 원래 값 기록, 로컬 `SMOKE: 24/24 PASS`
-- [ ] B Supabase 테이블 3개 · `anon_can_read = false` · 관리자 계정 · 암호화 키 보관
+- [ ] B Supabase 테이블 3개 · `anon_can_read = false` · 관리자 계정(비밀번호 보관) · Secret key·암호화 키 보관
 - [x] C GitHub 공개 저장소 `wild-mental/wild-bread-market`에 push, `.env.local` 없음
 - [ ] D Vercel 1차 배포, Production 주소에서 `/` · `/predict` · `/result` 확인
 - [ ] E `/admin/cafe24` 관리 화면 열림
@@ -457,4 +497,5 @@ Vercel Logs의 [cafe24] 줄: [토큰·code·Secret 제거 후 붙여넣기]
 - [ ] G `connected: true` · 조회 · 기준값 · up `applied→already` · 판매가 4,940원 · 복원 5,200원
 - [ ] H 공개 API·JS 확인 · 위젯 설치 · PC/모바일 카드 · 앱 ↔ 자사몰 링크
 - [ ] I `docs/live-test-report.md` 작성 · (실습만 할 경우) 정리
+- [ ] 2-1 비밀값: 비밀번호 관리자 보관 · Vercel Production만 · 2단계 인증 · `.env.local` 정리
 - [ ] 3장 운영 전 항목 검토
