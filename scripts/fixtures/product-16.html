@@ -1,0 +1,2441 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "//www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="//www.w3.org/1999/xhtml" xml:lang="ko" lang="ko">
+
+
+
+<head><script>(function(i, s, o, g, r) {
+    var a = s.createElement(o);
+    var m = s.getElementsByTagName(o)[0];
+    a.async = true;
+    a.src = g;
+    a.onload = function() {
+        if (i[r].init) {
+            i[r].init('https://js-error-tracer-api.cafe24.com', 'REDACTED_PUBLIC_ERROR_TRACER_TOKEN', {"errors":{"path":"\/api\/v1\/store","collectWindowErrors":true,"preventDuplicateReports":true,"storageKeyPrefix":"EC_JET.PRODUCT_DETAIL","samplingEnabled":true,"samplingRate":0.5},"vitals":{"path":"\/api\/v1\/vitals","samplingEnabled":true,"samplingRate":0.3},"resources":{"path":"\/api\/v1\/resources","samplingEnabled":true,"samplingRate":0.5,"durationThreshold":3000}});
+        }
+    };
+    m.parentNode.insertBefore(a, m);
+}(window, document, 'script', '//assets.poxo.com/jet/jet.js', 'EC_JET'));</script>
+<script type="text/javascript">window.CAFE24 = window.CAFE24 || {};CAFE24.ROUTE = {"is_mobile":false,"is_need_route":false,"language_code":"ZZ","path":{"origin":"\/product\/\ud5a5\uae30\ub85c\uc6b4-\ud5c8\ube0c-\uc300\uce58\uc544\ubc14\ud0c0\/16\/category\/81\/display\/1\/","result":"\/product\/\ud5a5\uae30\ub85c\uc6b4-\ud5c8\ube0c-\uc300\uce58\uc544\ubc14\ud0c0\/16\/category\/81\/display\/1\/","prefix":""},"shop_no":0,"skin_code":"default","support_language_list":{"ar":"ar_EG","ar-EG":"ar_EG","de":"de_DE","de-DE":"de_DE","en":"en_US","en-IN":"en_IN","en-PH":"en_PH","en-US":"en_US","es":"es_ES","es-ES":"es_ES","hi":"hi_IN","hi-IN":"hi_IN","id":"id_ID","id-ID":"id_ID","it":"it_IT","it-IT":"it_IT","ja":"ja_JP","ja-JP":"ja_JP","ko":"ko_KR","ko-KR":"ko_KR","ms":"ms_MY","ms-MY":"ms_MY","pt":"pt_PT","pt-PT":"pt_PT","ru":"ru_RU","ru-RU":"ru_RU","th":"th_TH","th-TH":"th_TH","tr":"tr_TR","tr-TR":"tr_TR","vi":"vi_VN","vi-VN":"vi_VN","zh":"zh_CN","zh-CN":"zh_CN","zh-HK":"zh_HK","zh-MO":"zh_MO","zh-SG":"zh_SG","zh-TW":"zh_TW"}};</script><script type="text/javascript">if (typeof EC_ROUTE === "undefined") {
+    /**
+     * 프론트용 라우트 플러그인
+     * @type {{bInit: boolean, init: EC_ROUTE.init}}
+     * CAFE24.ROUTE 참조
+     */
+    var EC_ROUTE = {
+        EC_DOMAIN_PATH_INFO: 'EC_DOMAIN_PATH_INFO',
+        bInit: false,
+        aFromList: [],
+        aToList: [],
+        aCleanFilter: null,
+        init: function () {
+            if (this.bInit || typeof CAFE24.ROUTE === 'undefined') {
+                return;
+            }
+            this.bInit = true;
+            this.aCleanFilter = [
+                /^shop[1-9][0-9]*$/,
+                /^(m|p)$/,
+                new RegExp('^(' + Object.keys(CAFE24.ROUTE.support_language_list).join('|')  + ')$'),
+                /^skin-(base|skin[1-9][0-9]*|mobile[0-9]*)$/,
+            ];
+        },
+        isNeedRoute: function ()
+        {
+            return CAFE24.ROUTE.is_need_route;
+        },
+        /**
+         *
+         * @param iShopNo
+         * @param bMobile
+         * @param sFrontLanguage
+         * @param sSkinCode
+         * @returns {*|string}
+         */
+        getUrlDomain: function (iShopNo, bMobile, sFrontLanguage, sSkinCode)
+        {
+            var oRouteConfig = {};
+            if (typeof iShopNo == 'undefined') {
+                oRouteConfig.shop_no = CAFE24.SDE_SHOP_NUM;
+            } else {
+                oRouteConfig.shop_no = iShopNo;
+            }
+            if (typeof bMobile == 'undefined') {
+                oRouteConfig.is_mobile = false;
+            } else {
+                oRouteConfig.is_mobile = bMobile;
+            }
+            if (typeof sFrontLanguage == 'undefined') {
+                oRouteConfig.language_code = '';
+            }else {
+                oRouteConfig.language_code = sFrontLanguage; // 내부에서 로직으로 동작할땐 언어_지역 형태의 로케일 형태를 따른다.
+            }
+            if (typeof sSkinCode == 'undefined') {
+                oRouteConfig.skin_code = '';
+            }else {
+                oRouteConfig.skin_code = sSkinCode;
+            }
+
+            var sDomain = '';
+            if (oRouteConfig.shop_no != CAFE24.SDE_SHOP_NUM) {
+                // 접근된 다른 멀티샵 도메인 정보는 primary domain 를 조회해야함으로 ajax 를 통해 정보를 얻는다.
+                sDomain = this._getUrlDomainMultishop(oRouteConfig);
+            } else {
+                // 샵이 동일할 경우에는 접근된 domain 에 path 정보만 정리하여 반환함.
+                sDomain = this._getUrlDomain(oRouteConfig);
+            }
+            return sDomain;
+        },
+        _getUrlDomainMultishop: function (oRouteConfig)
+        {
+            var sDomain = '';
+            EC$.ajax({
+                type: 'GET',
+                url: '/exec/front/Shop/Domain',
+                data: {
+                    '_shop_no' : oRouteConfig.shop_no,
+                    'is_mobile' : oRouteConfig.is_mobile,
+                    'language_code' : oRouteConfig.language_code,
+                    'skin_code' : oRouteConfig.skin_code,
+                },
+                async: false,
+                dataType: 'json',
+                cache: true,
+                success: function(oResult) {
+                    switch (oResult.code) {
+                        case '0000' :
+                            sDomain = oResult.data;
+                            break;
+                        default :
+                            break;
+                    }
+                    return false;
+                }
+            });
+            return sDomain;
+        },
+        _getUrlDomain: function (oRouteConfig)
+        {
+            oRouteConfig.domain = this._getCreateHost(oRouteConfig);
+            return location.protocol + '//' + oRouteConfig.domain + this._getCreateUri(oRouteConfig);
+        },
+        _getCreateHost : function (oRouteConfig)
+        {
+            var sHost = location.host;
+            var aHost = sHost.split('.');
+            if (this.isBaseDomain(sHost)) {
+                if (aHost.length > 3) {
+                    aHost[0] = '';
+                }
+            } else if (oRouteConfig.is_mobile) {
+                if (this.isMobileDomain()) {
+                    oRouteConfig.is_mobile = false;
+                }
+            }
+            return aHost.filter(Boolean).join('.');
+        },
+        _getCreateUri: function (oRouteInfo)
+        {
+            var aUrl = [];
+            if (this.isBaseDomain() && oRouteInfo.shop_no > 1) {
+                aUrl.push('shop' + oRouteInfo.shop_no);
+            }
+            if (oRouteInfo.is_mobile) {
+                aUrl.push('m');
+            }
+            if (oRouteInfo.language_code != 'ZZ' && oRouteInfo.language_code != '') {
+                var iIndex = Object.values(CAFE24.ROUTE.support_language_list).indexOf(oRouteInfo.language_code);
+                if (iIndex !== -1) {
+                    aUrl.push(Object.keys(CAFE24.ROUTE.support_language_list)[iIndex]);
+                }
+            }
+            if (this.isBaseDomain() && oRouteInfo.skin_code != 'default' && oRouteInfo.skin_code != '') {
+                aUrl.push('skin-' + oRouteInfo.skin_code);
+            }
+            var sUrl= '/';
+            if (aUrl.length > 0) {
+                sUrl= '/' + aUrl.join('/');
+                sUrl = this.rtrim(sUrl, '/');
+            }
+            return sUrl;
+        },
+        /**
+         * en, en-US => en_US
+         */
+        convertValidLanguageCode: function (sUrlLanguageCode)
+        {
+            if (typeof CAFE24.ROUTE.support_language_list[sUrlLanguageCode] != 'undefined') {
+                return CAFE24.ROUTE.support_language_list[sUrlLanguageCode];
+            }
+            return false;
+        },
+        isMobileDomain: function (sHost)
+        {
+            if (typeof sHost == 'undefined') {
+                sHost = location.host;
+            }
+            var aMatched = sHost.match(/^(m|mobile|skin\-mobile|skin\-mobile[0-9]+[\-]{2}shop[0-9]+|skin\-mobile[0-9]+|mobile[\-]{2}shop[0-9]+)\./i);
+            return aMatched != null;
+        },
+        isBaseDomain: function (sHost)
+        {
+            if (typeof sHost == 'undefined') {
+                sHost = location.host;
+            }
+            return sHost.indexOf(CAFE24.GLOBAL_INFO.getRootDomain()) !== -1;
+        },
+        removePrefixUrl: function (sUrl)
+        {
+            if (this.isNeedRoute()) {
+                sUrl = sUrl.replace(this.getPrefixUrl('/'), '/'); // 자동으로  prefix 붙은 영역을 제거해준다.
+            }
+            return sUrl;
+        },
+        getPrefixUrl: function (sUrl)
+        {
+            if (this.isNeedRoute() === false) {
+                return sUrl;
+            }
+            if (sUrl.indexOf('/') !== 0) {
+                return sUrl;
+            }
+            if (sUrl.match(/^\/{2,}/) !== null) {
+                return sUrl;
+            }
+
+            var iCachedPosition = this.aFromList.indexOf(sUrl);
+            if (iCachedPosition > -1) {
+                return this.aToList[iCachedPosition];
+            }
+
+            var bTailSlash = (sCleanUrl !== '/' && sUrl.substr(-1) === '/');
+            var sCleanUrl = this.getCleanUrl(sUrl);
+            var aPrefixPart = CAFE24.ROUTE.path.prefix.split('/');
+            var aUrlPart = sCleanUrl.split('/');
+            var bMatched = true;
+            var sReturnUrl = sCleanUrl;
+            if (aUrlPart.length < aPrefixPart.length) {
+                bMatched = false;
+            } else {
+                for (var i = 0; i < aPrefixPart.length ; i++) {
+                    if (aPrefixPart[i] != aUrlPart[i]) {
+                        bMatched = false;
+                        break;
+                    }
+                }
+            }
+            if (bMatched === false) {
+                if (sCleanUrl == '/') {
+                    sReturnUrl = CAFE24.ROUTE.path.prefix;
+                } else {
+                    sReturnUrl = CAFE24.ROUTE.path.prefix +  sCleanUrl;
+                }
+                sReturnUrl = bTailSlash ? sReturnUrl : this.rtrim(sReturnUrl, '/')
+                this.aFromList.push(sUrl);
+                this.aToList.push(sReturnUrl);
+            }
+            return sReturnUrl;
+        },
+        /**
+         * document.location.pathname 이 필요할 경우 사용한다.
+         * @returns {*}
+         */
+        getPathName: function()
+        {
+            if (typeof CAFE24.ROUTE.path.result == 'undefined') {
+                return document.location.pathname;
+            }
+            return CAFE24.ROUTE.path.result;
+        },
+        rtrim: function (str, chr)
+        {
+            var rgxtrim = (!chr) ? new RegExp('\\s+$') : new RegExp(chr+'+$');
+            return str.replace(rgxtrim, '');
+        },
+        getShopNo: function ()
+        {
+            return CAFE24.ROUTE.shop_no;
+        },
+        getSkinCode: function ()
+        {
+            return CAFE24.ROUTE.skin_code;
+        },
+        getLanguageCode: function ()
+        {
+            return CAFE24.ROUTE.language_code;
+        },
+        getMobile: function ()
+        {
+            return CAFE24.ROUTE.is_mobile;
+        },
+        getIsMobile: function ()
+        {
+            return CAFE24.ROUTE.is_mobile || CAFE24.ROUTE.skin_code.match(/^mobile[0-9]*$/);
+        },
+        getCleanUrl: function (sUrl)
+        {
+            if (sUrl === '/') {
+                return sUrl;
+            }
+
+            var aUrl = sUrl.split('/');
+            aUrl.shift();
+
+            if (aUrl.length < 1) {
+                return sUrl;
+            }
+
+            // 현재 4 depth 까지 미리보기 기능이 구현되어있음
+            var iPos = 0;
+            var bFind = false;
+            for (var i = 0; i < aUrl.length ; i++) {
+                bFind = false;
+                for (var iSub = iPos, iSubCount = this.aCleanFilter.length; iSub < iSubCount ; iSub++) {
+                    if (aUrl[i].match(this.aCleanFilter[iSub]) !== null) {
+                        bFind = true;
+                        iPos = iSub + 1;
+                        aUrl.splice(i, 1);
+                        i--; // aUrl 을 삭제해 주었으니 검색 조건을 -1 제거하여 초기화 한다. 다음 for i++ 로 증감 조회됨.
+                        break;
+                    }
+                }
+                if (bFind === false) {
+                    break;
+                }
+            }
+            return '/' + aUrl.join('/');
+        },
+        getIsEasyUrl : function ()
+        {
+            return !window.location.pathname.match(/^[\w\/\-\.]+(php|html|htm)$/i);
+        }
+    };
+    EC_ROUTE.init();
+}
+</script>
+<meta name="path_role" content="PRODUCT_DETAIL" />
+<meta name="author" content="wild-bread" />
+<meta name="description" content="Sample Product Generated by CAFE24" />
+<meta name="keywords" content="향기로운 허브 쌀치아바타, , wild-bread, 허브 쌀치아바타" />
+<meta name="design_html_path" content="/product/detail.html" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    
+
+    <!-- PG크로스브라우징필수내용 -->
+    <meta http-equiv="Cache-Control" content="no-cache"/>
+    <meta http-equiv="Expires" content="0"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <!-- // PG크로스브라우징필수내용 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>            <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&amp;display=swap"/>
+    <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/pretendard.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/sCoreDream.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/LINESeedKR.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/SUITE.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/SUIT.css"/>
+    <link rel="stylesheet" href="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/css/JalnanGothic.css"/>
+    <!-- 해당 CSS는 쇼핑몰 전체 페이지에 영향을 줍니다. 삭제와 수정에 주의해주세요. -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@6/swiper-bundle.min.css"/>
+	<script src="https://cdn.jsdelivr.net/npm/swiper@6/swiper-bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    
+    
+    
+    
+    
+    
+    
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"향기로운 허브 쌀치아바타","image":["https://ecimg.cafe24img.com/pg3374b03088006059/wildmental/web/product/big/20260914/f887f087df1489e5359e6afb0eb9b6a9.jpg"],"description":"Sample Product Generated by CAFE24","brand":{"@type":"Brand","name":"wild-bread"},"offers":{"@type":"Offer","url":"https://wildmental.cafe24.com/product/향기로운-허브-쌀치아바타/16/","priceCurrency":"KRW","price":5200}}</script>
+<link rel="canonical" href="https://wildmental.cafe24.com/product/향기로운-허브-쌀치아바타/16/" />
+<meta property="og:url" content="https://wildmental.cafe24.com/product/향기로운-허브-쌀치아바타/16/" />
+<meta property="og:title" content="향기로운 허브 쌀치아바타 - wild-bread" />
+<meta property="og:description" content="Sample Product Generated by CAFE24" />
+<meta property="og:site_name" content="wild-bread" />
+<meta property="og:type" content="product" />
+<meta property="og:image" content="https://ecimg.cafe24img.com/pg3374b03088006059/wildmental/web/product/big/20260914/f887f087df1489e5359e6afb0eb9b6a9.jpg" />
+<meta property="product:price:amount" content="5200" />
+<meta property="product:price:currency" content="KRW" />
+<meta property="product:sale_price:amount" content="5200" />
+<meta property="product:sale_price:currency" content="KRW" />
+<meta property="product:productId" content="16" />
+<meta property="product:retailer_item_id" content="16" />
+<script type="text/javascript">
+window.CAFE24 = window.CAFE24 || {};
+CAFE24.MANIFEST_CACHE_REVISION = '2609091504';
+CAFE24.getDeprecatedNamespace = function(sDeprecatedNamespace, sSupersededNamespace) {
+var sNamespace = sSupersededNamespace 
+? sSupersededNamespace 
+: sDeprecatedNamespace.replace(/^EC_/, '');
+return CAFE24[sNamespace];
+}
+CAFE24.FRONT_LANGUAGE_CODE = "ko_KR";
+CAFE24.MOBILE = false;
+CAFE24.MOBILE_DEVICE = false;
+CAFE24.MOBILE_USE = false;
+var EC_MOBILE = CAFE24.MOBILE;
+var EC_MOBILE_DEVICE = CAFE24.MOBILE_DEVICE;
+var EC_MOBILE_USE = CAFE24.MOBILE_USE;
+CAFE24.SKIN_CODE = "skin5";
+CAFE24.FRONT_EXTERNAL_SCRIPT_VARIABLE_DATA = {"common_member_id_crypt":""};
+var EC_FRONT_EXTERNAL_SCRIPT_VARIABLE_DATA = CAFE24.getDeprecatedNamespace('EC_FRONT_EXTERNAL_SCRIPT_VARIABLE_DATA');
+CAFE24.SDE_SHOP_NUM = 1;CAFE24.SHOP = {getLanguage : function() { return "ko_KR"; },getSkinLanguageCode : function() { return "ko_KR"; },getCurrency : function() { return "KRW"; },getFlagCode : function() { return "KR"; },getTimezone: function() { return "Asia/Seoul" },getDateFormat: function() { return "Y-m-d" },isMultiShop : function() { return false; },isDefaultShop : function() { return true; },isDefaultLanguageShop : function(sLanguageCode) { return SHOP.isDefaultShop() && SHOP.isLanguageShop(sLanguageCode); },isKR : function() { return true; },isUS : function() { return false; },isJP : function() { return false; },isCN : function() { return false; },isTW : function() { return false; },isES : function() { return false; },isPT : function() { return false; },isVN : function() { return false; },isPH : function() { return false; },getCountryAndLangMap : function() { return {
+"KR": "ko_KR",
+"US": "en_US",
+"JP": "ja_JP",
+"CN": "zh_CN",
+"TW": "zh_TW",
+"VN": "vi_VN",
+"PH": "en_PH"
+}},isLanguageShop : function(sLanguageCode) { return sLanguageCode === "ko_KR"; },getDefaultShopNo : function() { return 1; },getProductVer : function() { return 2; },isSDE : function() { return true; },isMode : function() {return false; },getModeName : function() {return false; },isMobileAdmin : function() {return false; },isNewProMode : function() {return true; },isExperienceMall : function() { return false; },isDcollection : function() {return false; },isYoutubeShops : function() {return false; },getYtShopsShopNo : function() {return 0; },isFrontDesignChangeRequired : function() {return false;},isG2G : function() {return false; },isGlobale : function() {return false; },getAdminID : function() {return ''},getMallID : function() {return 'wildmental'},getCurrencyFormat : function(sPriceTxt, bIsNumberFormat) { 
+sPriceTxt = String(sPriceTxt);
+var aCurrencySymbol = ["","\uc6d0",false];
+if (typeof CAFE24.SHOP_PRICE !== 'undefined' && isNaN(sPriceTxt.replace(/[,]/gi, '')) === false && bIsNumberFormat === true) {
+// bIsNumberFormat 사용하려면 Ui(':libUipackCurrency')->plugin('Currency') 화폐 라이브러리 추가 필요
+sPriceTxt = CAFE24.SHOP_PRICE.toShopPrice(sPriceTxt.replace(/[,]/gi, ''), true, CAFE24.SDE_SHOP_NUM);
+}
+try {
+var sPlusMinusSign = (sPriceTxt.toString()).substr(0, 1);
+if (sPlusMinusSign === '-' || sPlusMinusSign === '+') {
+sPriceTxt = (sPriceTxt.toString()).substr(1);
+return sPlusMinusSign + aCurrencySymbol[0] + sPriceTxt + aCurrencySymbol[1];
+} else {
+return aCurrencySymbol[0] + sPriceTxt + aCurrencySymbol[1];
+}
+} catch (e) {
+return aCurrencySymbol[0] + sPriceTxt + aCurrencySymbol[1];
+}
+}};CAFE24.CURRENCY_INFO = {getOriginReferenceCurrency : function() {return 'USD'},getCurrencyList : function(sCurrencyCode) { var aCurrencyList = {"AED":{"currency_symbol":"&#1601;&#1604;&#1587;","decimal_place":2,"round_method_type":"R"},"AMD":{"currency_symbol":"\u058f","decimal_place":2,"round_method_type":"R"},"AOA":{"currency_symbol":"Kz","decimal_place":2,"round_method_type":"R"},"AUD":{"currency_symbol":"A$","decimal_place":2,"round_method_type":"R"},"BDT":{"currency_symbol":"&#2547;","decimal_place":2,"round_method_type":"R"},"BHD":{"currency_symbol":".&#1583;.&#1576;","decimal_place":3,"round_method_type":"R"},"BRL":{"currency_symbol":"R$","decimal_place":2,"round_method_type":"R"},"CAD":{"currency_symbol":"C$","decimal_place":2,"round_method_type":"R"},"CHF":{"currency_symbol":"Fr","decimal_place":2,"round_method_type":"R"},"CNY":{"currency_symbol":"&yen;","decimal_place":2,"round_method_type":"R"},"CRC":{"currency_symbol":"\u20a1","decimal_place":2,"round_method_type":"R"},"CVE":{"currency_symbol":"$","decimal_place":2,"round_method_type":"R"},"CZK":{"currency_symbol":"K&#269;","decimal_place":2,"round_method_type":"R"},"DJF":{"currency_symbol":"Fdj","decimal_place":0,"round_method_type":"F"},"DKK":{"currency_symbol":"kr","decimal_place":2,"round_method_type":"R"},"DZD":{"currency_symbol":"\u062f.\u062c","decimal_place":2,"round_method_type":"R"},"ETB":{"currency_symbol":"Br","decimal_place":2,"round_method_type":"R"},"EUR":{"currency_symbol":"\u20ac","decimal_place":2,"round_method_type":"R"},"GBP":{"currency_symbol":"&pound;","decimal_place":2,"round_method_type":"R"},"GEL":{"currency_symbol":"\u20be","decimal_place":2,"round_method_type":"R"},"GHS":{"currency_symbol":"GH\u20b5","decimal_place":2,"round_method_type":"R"},"GMD":{"currency_symbol":"D","decimal_place":2,"round_method_type":"R"},"GNF":{"currency_symbol":"FG","decimal_place":0,"round_method_type":"F"},"HKD":{"currency_symbol":"HK$","decimal_place":2,"round_method_type":"R"},"HUF":{"currency_symbol":"Ft","decimal_place":2,"round_method_type":"R"},"IDR":{"currency_symbol":"Rp","decimal_place":0,"round_method_type":"F"},"ILS":{"currency_symbol":"&#8362;","decimal_place":2,"round_method_type":"R"},"INR":{"currency_symbol":"&#8377;","decimal_place":2,"round_method_type":"R"},"JOD":{"currency_symbol":" &#1583;&#1610;&#1606;&#1575;&#1585;","decimal_place":3,"round_method_type":"R"},"JPY":{"currency_symbol":"&yen;","decimal_place":0,"round_method_type":"F"},"KES":{"currency_symbol":"KSh","decimal_place":2,"round_method_type":"R"},"KMF":{"currency_symbol":"CF","decimal_place":0,"round_method_type":"F"},"KWD":{"currency_symbol":"&#1583;&#1610;&#1606;&#1575;&#1585;","decimal_place":3,"round_method_type":"R"},"MAD":{"currency_symbol":"\u062f.\u0645.","decimal_place":2,"round_method_type":"R"},"MDL":{"currency_symbol":"L","decimal_place":2,"round_method_type":"R"},"MOP":{"currency_symbol":"MOP$","decimal_place":2,"round_method_type":"R"},"MVR":{"currency_symbol":"Rf","decimal_place":2,"round_method_type":"R"},"MWK":{"currency_symbol":"MK","decimal_place":2,"round_method_type":"R"},"MXN":{"currency_symbol":"Mex$","decimal_place":2,"round_method_type":"R"},"MYR":{"currency_symbol":"RM","decimal_place":2,"round_method_type":"R"},"NOK":{"currency_symbol":"kr","decimal_place":2,"round_method_type":"R"},"NZD":{"currency_symbol":"NZ$","decimal_place":2,"round_method_type":"R"},"PGK":{"currency_symbol":"K","decimal_place":2,"round_method_type":"R"},"PHP":{"currency_symbol":"&#8369;","decimal_place":2,"round_method_type":"R"},"PKR":{"currency_symbol":"&#8360;","decimal_place":2,"round_method_type":"R"},"PLN":{"currency_symbol":"z\u0142","decimal_place":2,"round_method_type":"R"},"RUB":{"currency_symbol":"\u0440\u0443\u0431","decimal_place":2,"round_method_type":"R"},"RWF":{"currency_symbol":"RF","decimal_place":0,"round_method_type":"F"},"SAR":{"currency_symbol":"&#65020;","decimal_place":2,"round_method_type":"R"},"SEK":{"currency_symbol":"kr","decimal_place":2,"round_method_type":"R"},"SGD":{"currency_symbol":"S$","decimal_place":2,"round_method_type":"R"},"SLL":{"currency_symbol":"Le","decimal_place":2,"round_method_type":"R"},"STN":{"currency_symbol":"Db","decimal_place":2,"round_method_type":"R"},"THB":{"currency_symbol":"&#3647;","decimal_place":2,"round_method_type":"R"},"TND":{"currency_symbol":"\u062f.\u062a","decimal_place":3,"round_method_type":"R"},"TOP":{"currency_symbol":"T$","decimal_place":2,"round_method_type":"R"},"TRY":{"currency_symbol":"TL","decimal_place":2,"round_method_type":"R"},"TWD":{"currency_symbol":"NT$","decimal_place":0,"round_method_type":"F"},"TZS":{"currency_symbol":"TSh","decimal_place":2,"round_method_type":"R"},"UGX":{"currency_symbol":"USh","decimal_place":0,"round_method_type":"F"},"USD":{"currency_symbol":"$","decimal_place":2,"round_method_type":"R"},"VND":{"currency_symbol":"&#8363;","decimal_place":0,"round_method_type":"F"},"VUV":{"currency_symbol":"VT","decimal_place":0,"round_method_type":"F"},"WST":{"currency_symbol":"WS$","decimal_place":2,"round_method_type":"R"},"XAF":{"currency_symbol":"FCFA","decimal_place":0,"round_method_type":"F"},"XOF":{"currency_symbol":"CFA","decimal_place":0,"round_method_type":"F"},"XPF":{"currency_symbol":"\u20a3","decimal_place":0,"round_method_type":"F"},"ZAR":{"currency_symbol":"R","decimal_place":2,"round_method_type":"R"},"ZMW":{"currency_symbol":"ZK","decimal_place":2,"round_method_type":"R"}}; return aCurrencyList[sCurrencyCode] },isUseReferenceCurrency : function() {return false }};CAFE24.COMMON_UTIL = {convertSslForString : function(sString) { return sString.replace(/http:/gi, '');},convertSslForHtml : function(sHtml) { return sHtml.replace(/((?:src|href)\s*=\s*['"])http:(\/\/(?:[a-z0-9\-_\.]+)\/)/ig, '$1$2');},getProtocol : function() { return 'https'; },moveSsl : function() { if (CAFE24.COMMON_UTIL.getProtocol() === 'http') { var oLocation = jQuery(window.location); var sUrl = 'https://' + oLocation.attr('host') + oLocation.attr('pathname') + oLocation.attr('search'); window.location.replace(sUrl); } },setEcCookie : function(sKey, sValue, iExpire) {var exdate = new Date();exdate.setDate(exdate.getDate() + iExpire);var setValue = escape(sValue) + "; domain=." + CAFE24.GLOBAL_INFO.getBaseDomain() + "; path=/;expires=" + exdate.toUTCString();document.cookie = sKey + "=" + setValue;}};CAFE24.SHOP_LIB_INFO = {getBankInfo : function() { 
+var oBankInfo = "";
+$.ajax({
+type: "GET",
+url: "/exec/front/Shop/Bankinfo",
+dataType: "json",
+async: false,
+success: function(oResponse) {
+oBankInfo = oResponse;
+}
+});
+return oBankInfo; }};            var EC_SDE_SHOP_NUM = CAFE24.SDE_SHOP_NUM;
+var SHOP = CAFE24.getDeprecatedNamespace('SHOP');
+var EC_COMMON_UTIL = CAFE24.getDeprecatedNamespace('EC_COMMON_UTIL');
+var EC_SHOP_LIB_INFO = CAFE24.getDeprecatedNamespace('EC_SHOP_LIB_INFO');
+var EC_CURRENCY_INFO = CAFE24.getDeprecatedNamespace('EC_CURRENCY_INFO');
+CAFE24.ROOT_DOMAIN = "cafe24.com";
+CAFE24.API_DOMAIN = "cafe24api.com";
+CAFE24.GLOBAL_INFO = (function() {
+var oData = {"base_domain":"wildmental.cafe24.com","root_domain":"cafe24.com","api_domain":"cafe24api.com","is_global":false,"is_global_standard":false,"country_code":"KR","language_code":"ko_KR","admin_language_code":"ko_KR","front_language_code":"ko_KR"};
+return {
+getBaseDomain: function() {
+return oData['base_domain'];
+},
+getRootDomain: function() {
+return oData['root_domain'];
+},
+getApiDomain: function() {
+return oData['api_domain'];
+},
+isGlobal: function() {
+return oData['is_global'];
+},
+isGlobalStandard: function() {
+return oData['is_global_standard'];
+},
+getCountryCode: function() {
+return oData['country_code'];
+},
+getLanguageCode: function() {
+return oData['language_code'];
+},
+getAdminLanguageCode: function() {
+return oData['admin_language_code'];
+},
+getFrontLanguageCode: function() {
+return oData['front_language_code'];
+}
+};
+})();
+var EC_ROOT_DOMAIN = CAFE24.ROOT_DOMAIN;
+var EC_API_DOMAIN = CAFE24.API_DOMAIN;
+var EC_TRANSLATE_LOG_STATUS = CAFE24.TRANSLATE_LOG_STATUS;
+var EC_GLOBAL_INFO = CAFE24.getDeprecatedNamespace('EC_GLOBAL_INFO');
+CAFE24.AVAILABLE_LANGUAGE = ["ko_KR","zh_CN","en_US","zh_TW","es_ES","pt_PT","vi_VN","ja_JP","en_PH"];
+CAFE24.AVAILABLE_LANGUAGE_CODES = {"ko_KR":"KOR","zh_CN":"CHN","en_US":"ENG","zh_TW":"TWN","es_ES":"ESP","pt_PT":"PRT","vi_VN":"VNM","ja_JP":"JPN","en_PH":"PHL"};
+var EC_AVAILABLE_LANGUAGE = CAFE24.AVAILABLE_LANGUAGE;
+var EC_AVAILABLE_LANGUAGE_CODES = CAFE24.AVAILABLE_LANGUAGE_CODES;
+CAFE24.GLOBAL_PRODUCT_LANGUAGE_CODES = {  
+sClearanceCategoryCode: '',
+sManualLink: '//support.cafe24.com/hc/ko/articles/7739013909529',
+sHsCodePopupLink: 'https://www.wcotradetools.org/en/harmonized-system',
+aCustomRegex: '"PHL" : "^[0-9]{8}[A-Z]?$"',
+sCountryCodeData: 'kor',
+sEnglishExampleURlForGlobal: '',
+aReverseAddressCountryCode: ["VNM","PHL"],
+aSizeGuideCountryAlign: '["US","UK","EU","KR","JP","CN"]',
+aIsSupportTran: ["ja_JP","zh_CN","zh_TW","en_US","vi_VN","en_PH","pt_PT","es_ES"]
+};
+var EC_GLOBAL_PRODUCT_LANGUAGE_CODES = CAFE24.getDeprecatedNamespace('EC_GLOBAL_PRODUCT_LANGUAGE_CODES');
+CAFE24.GLOBAL_ORDER_LANGUAGE_CODES = {
+aModifyOrderLanguage: {"KR":"ko_KR","JP":"ja_JP","CN":"zh_CN","TW":"zh_TW","VN":"vi_VN","PH":"en_PH"},
+aUseIdCardKeyCountry: ["CN","TW"],
+aLanguageWithCountryCode: {"zh_CN":["CN","CHN","HK","HNK"],"ja_JP":["JP","JPN"],"zh_TW":["TW","TWN"],"ko_KR":["KR","KOR"],"vi_VN":["VN","VNM"],"en_PH":["PH","PHL"]},
+aCheckDisplayRequiredIcon: ["ja_JP","zh_CN","zh_TW","en_US","vi_VN","en_PH"],
+aSetReceiverName: {"zh_CN":{"sCountry":"CN","bUseLastName":true},"zh_TW":{"sCountry":"TW","bUseLastName":false},"ja_JP":{"sCountry":"JP","bUseLastName":true}},
+aSetDeferPaymethodLanguage: {"ja_JP":"\uc77c\ubcf8","zh_CN":"\uc911\uad6d"},
+aUseDeferPaymethod: ["ja_JP","zh_CN"],
+aCheckShippingCompanyAndPaymethod: ["ja_JP","zh_CN"],
+aSetDeferPaymethodLanguageForShipping: {"ja_JP":"\u65e5\u672c","zh_CN":"\uc911\uad6d"},
+aCheckStoreByPaymethod: ["ja_JP","zh_CN"],
+aCheckIsEmailRequiredForJs: ["en_US","zh_CN","zh_TW","ja_JP","vi_VN","en_PH"],
+aSetIdCardKeyCountryLanguage: {"CN":"\uc911\uad6d\uc758","TW":"\ub300\ub9cc\uc758"},
+aReverseGlobalAddress: ["en_PH","vi_VN","PHL","VNM","VN","PH"],
+aNoCheckZipCode: ["KOR","JPN"],
+aNotPostCodeAPICountryList: ["en_US","es_ES","pt_PT","en_PH"],
+aEnableSearchExchangeAddr: ["KR","JP","CN","VN","TW","PH"],
+aDuplicatedBaseAddr: ["TW","JP"],
+aReverseAddressCountryCode: ["VN","PH"],
+aCheckZipCode: ["PHL","en_PH","PH"]
+};
+var EC_GLOBAL_ORDER_LANGUAGE_CODES = CAFE24.getDeprecatedNamespace('EC_GLOBAL_ORDER_LANGUAGE_CODES');
+CAFE24.GLOBAL_MEMBER_LANGUAGE_CODES = {  
+sAdminWebEditorLanguageCode: 'ko' ,
+oNotAvailDecimalPointLanguages: ["ko_KR","ja_JP","zh_TW","vi_VN"],
+oAddressCountryCode: {"KOR":"ko_KR","JPN":"ja_JP","CHN":"zh_CN","TWN":"zh_TW","VNM":"vi_VN","PHL":"en_PH"},
+};
+var EC_GLOBAL_MEMBER_LANGUAGE_CODES = CAFE24.getDeprecatedNamespace('EC_GLOBAL_MEMBER_LANGUAGE_CODES');
+CAFE24.GLOBAL_BOARD_LANGUAGE_CODES = {  
+bUseLegacyBoard: true
+};
+var EC_GLOBAL_BOARD_LANGUAGE_CODES = CAFE24.getDeprecatedNamespace('EC_GLOBAL_BOARD_LANGUAGE_CODES');
+CAFE24.GLOBAL_MALL_LANGUAGE_CODES = {
+oDesign: {
+oDesignAddReplaceInfo: {"group_id":"SKIN.ADD.ADMIN.DESIGNDETAIL","replacement":{"KR":"KOREAN","US":"ENGLISH","JP":"JAPANESE","CN":"SIMPLIFIED.CHINESE","TW":"TRADITIONAL.CHINESE","ES":"SPANISH","PT":"PORTUGUESE","PH":"ENGLISH"}},
+oDesignDetailLanguageCountryMap: {"KR":"ko_KR","JP":"ja_JP","CN":"zh_CN","TW":"zh_TW","US":"en_US","ES":"es_ES","PT":"pt_PT","PH":"en_PH"},
+oSmartDesignSwitchTipLink: {"edibot":{"img":"\/\/img.echosting.cafe24.com\/smartAdmin\/img\/design\/img_editor_dnd.png","link":"\/\/ecsupport.cafe24.com\/board\/free\/list.html?board_act=list&board_no=12&category_no=9&cate_no=9"},"smart":{"img":"\/\/img.echosting.cafe24.com\/smartAdmin\/img\/design\/ko_KR\/img_editor_smart.png","link":"\/\/sdsupport.cafe24.com"}},
+oSmartDesignDecoShopList: ["ko_KR","ja_JP","zh_CN","en_US","zh_TW","es_ES","pt_PT"],
+oSmartDesignDecoMultilingual: {"list":{"ko_KR":"KOREAN","en_US":"ENGLISH","ja_JP":"JAPANESE","zh_CN":"SIMPLIFIED.CHINESE","zh_TW":"TRADITIONAL.CHINESE","es_ES":"SPANISH","pt_PT":"PORTUGUESE","vi_VN":"VIETNAMESE"},"group_id":"EDITOR.LAYER.EDITING.DECO"},
+aSmartDesignModuleShopList: ["ko_KR","ja_JP","zh_CN","en_US","zh_TW","es_ES","pt_PT"]
+},
+oStore: {
+oMultiShopCurrencyInfo: {"en_US":{"currency":"USD"},"zh_CN":{"currency":"USD","sub_currency":"CNY"},"ja_JP":{"currency":"JPY"},"zh_TW":{"currency":"TWD"},"es_ES":{"currency":"EUR"},"pt_PT":{"currency":"EUR"},"ko_KR":{"currency":"KRW"},"vi_VN":{"currency":"VND"},"en_PH":{"currency":"PHP"}},
+oBrowserRedirectLanguage: {"ko":{"primary":"ko_KR","secondary":"en_US"},"en":{"detail":{"en-ph":{"primary":"en_PH","secondary":"en_US"},"en-us":{"primary":"en_US","secondary":"es_ES"},"default":{"primary":"en_US","secondary":"es_ES"}}},"ja":{"primary":"ja_JP","secondary":"en_US"},"zh":{"detail":{"zh-cn":{"primary":"zh_CN","secondary":"en_US"},"zh-tw":{"primary":"zh_TW","secondary":"zh_CN"},"default":{"primary":"en_US","secondary":"ko_KR"}}},"es":{"primary":"es_ES","secondary":"en_US"},"pt":{"primary":"pt_PT","secondary":"en_US"},"vi":{"primary":"vi_VN","secondary":"en_US"},"default":{"primary":"en_US","secondary":"ko_KR"}},
+aChangeableLanguages: ["en_US","ja_JP","ko_KR"],
+aNoZipCodeLanguage: ["ko_KR","ja_JP"]
+},
+oMobile: {
+sSmartWebAppFaqUrl: "https://support.cafe24.com/hc/ko/articles/8466586607641",
+sAmpFaqUrl: "https://ecsupport.cafe24.com/board/free/read.html?no=1864&board_no=5&category_no=13&cate_no=13&category_no=13&category_no=13",
+},
+oPromotion: {
+bQrCodeAvailable: true,
+bSnsMarketingAvailable: true
+},
+oShippingReverseAddressLanguage: ["vi_VN","en_PH"] ,
+oGlobalStandardSwitchHelpCodeLink: {"SH.DS":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/SH.DS.html"},"PR.DS":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/PR.DS.html"},"OR.SM.BO":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/OR.SM.BO.html"},"DE.DS":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/DE.DS.html"},"MB.DS":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/MB.DS.html"},"PM.DS":{"link":"\/\/serviceguide.cafe24shop.com\/en_PH\/PM.DS.html"}},
+getAdminMainLocaleLanguage: function(sSkinLocaleCode) {
+var oLocaleData = [];
+var locale = "";
+var shopLangName = "";
+if (sSkinLocaleCode == "US") {
+locale = "en_US";
+shopLangName = "ENGLISH";
+} else if (sSkinLocaleCode == "JP") {
+locale = "ja_JP";
+shopLangName = "JAPANESE";
+} else if (sSkinLocaleCode == "CN") {
+locale = "zh_CN";
+shopLangName = "SIMPLIFIED.CHINESE";
+} else if (sSkinLocaleCode == "TW") {
+locale = "zh_TW";
+shopLangName = "TRADITIONAL.CHINESE";
+} else if (sSkinLocaleCode == "ES") {
+locale = "es_ES";
+shopLangName = "SPANISH";
+} else if (sSkinLocaleCode == "PT") {
+locale = "pt_PT";
+shopLangName = "PORTUGUESE";
+} else if (sSkinLocaleCode == "VN") {
+locale = "vi_VN";
+shopLangName = "VIETNAMESE";
+} else if(sSkinLocaleCode == "PH") {
+locale = "en_PH";
+shopLangName = "ENGLISH.PH";
+}
+oLocaleData["locale"] = locale;
+oLocaleData["shopLangName"] = shopLangName;
+return oLocaleData;
+}
+};
+var EC_GLOBAL_MALL_LANGUAGE_CODES = CAFE24.getDeprecatedNamespace('EC_GLOBAL_MALL_LANGUAGE_CODES');
+CAFE24.GLOBAL_DATETIME_INFO = {
+oConstants: {"STANDARD_DATE_REGEX":"\/([12]\\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))\/","IN_ZONE":"inZone","OUT_ZONE":"outZone","IN_FORMAT":"inFormat","OUT_FORMAT":"outFormat","IN_DATE_FORMAT":"inDateFormat","IN_TIME_FORMAT":"inTimeFormat","OUT_DATE_FORMAT":"outDateFormat","OUT_TIME_FORMAT":"outTimeFormat","IN_FORMAT_DATE_ONLY":1,"IN_FORMAT_TIME_ONLY":2,"IN_FORMAT_ALL":3,"OUT_FORMAT_DATE_ONLY":1,"OUT_FORMAT_TIME_ONLY":2,"OUT_FORMAT_ALL":3,"DATE_ONLY":"YYYY-MM-DD","TIME_ONLY":"HH:mm:ss","FULL_TIME":"YYYY-MM-DD HH:mm:ss","ISO_8601":"YYYY-MM-DD[T]HH:mm:ssZ","YEAR_ONLY":"YYYY","MONTH_ONLY":"MM","DAY_ONLY":"DD","WEEK_ONLY":"e","TIME_H_I_ONLY":"HH:mm","TIME_HOUR_ONLY":"HH","TIME_MINUTE_ONLY":"mm","POSTGRE_FULL_TIME":"YYYY-MM-DD HH24:MI:SS","POSTGRE_TIME_ONLY":" HH24:MI:SS","MICRO_SECOND_ONLY":"u","SEOUL":"Asia\/Seoul","TOKYO":"Asia\/Tokyo","SHANGHAI":"Asia\/Shanghai","TAIPEI":"Asia\/Taipei","HANOI":"Asia\/Bangkok","LOS_ANGELES":"America\/Los_Angeles","LISBON":"Europe\/Lisbon","MADRID":"Europe\/Madrid","SINGAPORE":"Asia\/Singapore","UTC":"Etc\/UTC","MAX_DATETIME":"9999-12-31 23:59:59"},
+oOptions: {"inZone":"Asia\/Seoul","inFormat":"YYYY-MM-DD HH:mm:ss","inDateFormat":"YYYY-MM-DD","inTimeFormat":"HH:mm:ss","outZone":"Asia\/Seoul","outFormat":"YYYY-MM-DD HH:mm:ss","outDateFormat":"YYYY-MM-DD","outTimeFormat":"HH:mm:ss"},
+oPolicies: {"shop":{"outZone":"Asia\/Seoul","outFormat":"YYYY-MM-DD HH:mm:ss","outDateFormat":"YYYY-MM-DD","outTimeFormat":"HH:mm:ss"}},
+sOverrideTimezone: '',
+sMomentNamespace: 'EC_GLOBAL_MOMENT'
+};
+CAFE24.FRONT_JS_CONFIG_MANAGE = {"sSmartBannerScriptUrl":"https:\/\/app4you.cafe24.com\/SmartBanner\/tunnel\/scriptTags?vs=1563164396689206","sMallId":"wildmental","sDefaultAppDomain":"https:\/\/app4you.cafe24.com","sWebLogOffFlag":"F","cdnUrl":"https:\/\/ecimg.cafe24img.com\/pg3374b03088006059\/wildmental"};
+var EC_FRONT_JS_CONFIG_MANAGE = CAFE24.getDeprecatedNamespace('EC_FRONT_JS_CONFIG_MANAGE');
+CAFE24.FRONT_JS_CONFIG_MEMBER = {"sAuthUrl":"https:\/\/ipin-ec.cafe24.com\/certify\/v1\/?action=auth"};
+var EC_FRONT_JS_CONFIG_MEMBER = CAFE24.getDeprecatedNamespace('EC_FRONT_JS_CONFIG_MEMBER');
+CAFE24.FRONT_JS_CONFIG_SHOP = {"search_period":[],"calendar_config":{"maxDate":"2028-09-15","locale":"ko"},"bDirectBuyOrderForm":false,"product_service_type":"standard","bIsExclusivePurchaseOnly":false,"is_cultural_tax":"F","bECUseItemSalePrice":false,"DROPSHIPPING":{"sellable":"T"},"sCouponDownloadPage":"\/coupon\/coupon_productdetail.html","aOptionColorchip":[],"oCategoryInfo":{"1":{"category_no":42,"category_name":"\uc300\ube75"},"2":{"category_no":53,"category_name":"\uc300\uce58\uc544\ubc14\ud0c0"},"3":{"category_no":81,"category_name":"\ud5c8\ube0c \uc300\uce58\uc544\ubc14\ud0c0"}},"aProductPurchaseInfo_16":{"bIsSuccess":true,"sMessage":"","bReplaceLoginPage":false,"bIsDisplayPurchaseButton":true}};
+var EC_FRONT_JS_CONFIG_SHOP = CAFE24.getDeprecatedNamespace('EC_FRONT_JS_CONFIG_SHOP');
+typeof window.CAFE24 === "undefined" && (window.CAFE24 = {});
+CAFE24.FRONTEND = {"IS_RENDERED_LOGIN":"F","FW_MANIFEST_CACHE_REVISION":2609091504,"IS_WEB_VIEW":"F"};
+CAFE24.ROUTE = {"is_mobile":false,"is_need_route":false,"language_code":"ZZ","path":{"origin":"\/product\/\ud5a5\uae30\ub85c\uc6b4-\ud5c8\ube0c-\uc300\uce58\uc544\ubc14\ud0c0\/16\/category\/81\/display\/1\/","result":"\/product\/\ud5a5\uae30\ub85c\uc6b4-\ud5c8\ube0c-\uc300\uce58\uc544\ubc14\ud0c0\/16\/category\/81\/display\/1\/","prefix":""},"shop_no":0,"skin_code":"default","support_language_list":{"ar":"ar_EG","ar-EG":"ar_EG","de":"de_DE","de-DE":"de_DE","en":"en_US","en-IN":"en_IN","en-PH":"en_PH","en-US":"en_US","es":"es_ES","es-ES":"es_ES","hi":"hi_IN","hi-IN":"hi_IN","id":"id_ID","id-ID":"id_ID","it":"it_IT","it-IT":"it_IT","ja":"ja_JP","ja-JP":"ja_JP","ko":"ko_KR","ko-KR":"ko_KR","ms":"ms_MY","ms-MY":"ms_MY","pt":"pt_PT","pt-PT":"pt_PT","ru":"ru_RU","ru-RU":"ru_RU","th":"th_TH","th-TH":"th_TH","tr":"tr_TR","tr-TR":"tr_TR","vi":"vi_VN","vi-VN":"vi_VN","zh":"zh_CN","zh-CN":"zh_CN","zh-HK":"zh_HK","zh-MO":"zh_MO","zh-SG":"zh_SG","zh-TW":"zh_TW"}};
+</script>
+
+<link rel="stylesheet" type="text/css" href="/ind-script/optimizer.php?filename=lY4xDgIxDAT76FreYQp4ARIPAPEAJ-eDCJ9tOYkEv-eg4pAo0q5mdtdcr44zOBVtnghSKTC5SoWk86wyLMHG_lOUQlFuNauEqI8uvNXaN8D4JO8RKkamLkEtcBYKEUV-tjhHuGTDdIfTd8sBmWREh92wH7YwMVbL6b6W0QzON7W1evwcWJixpfrmXw&type=css&k=e53092a611d78f42d807248168b35cbe6d3e098d&t=1789361892"  /><link rel="stylesheet" type="text/css" href="/ind-script/optimizer_user.php?filename=lZXBbsMgDIbvY9c9R057gGk7bNJuewIH3MBGMMKmSt9-NGl6aZOCFCkh_B9xjH_MBpVBdkPo-M-F104zdyOZ7LGLqdy1dAYFnH8uMy9cIQdjnDgKUI8k9HBGHgIeTpSlG7MXx5bit2OphRghafuJYDDdZy7CHtjpeQFN47gV1Y14eVEpLklSTQDqpzLAp-waASEqyYqNlEXfilw2s5kyX-FArRQMLoBgay6gbyT6LFJdAVeIpvbAfOvPFJWurePMQuN98WISXr2ofLHUOti210oJRdVDCJjmDwlOog5uQrOPjXREJVSueHHqdbwP2tm-M2N3nLzKSwYMLoY7P9UeFZ4G6kk2c3ZLHIjkUTCLZob35JsbXia2mJ0j8se6GF0YtkFPGjwqRpFN3U1QnHvFcqqu2rNeLI7Ve6ApHDFx6QqxtszneN4pSKL63mOBrcDwUK8pRwor9jH3xLdfmB6CPUEypcVFSrOZ_gE&type=css&k=08b28960597ee24d1723728ddbb96d5eb03967a7&t=1789354408&user=T"  />
+<style type="text/css">
+#prdDetailContentLazy img[src=""], #prdDetailContentLazy img:not([src]) { visibility: hidden !important; height: 1px !important; }
+</style>
+<title>향기로운 허브 쌀치아바타 - wild-bread</title></head>
+<body skin_type="gnb"><div id="layout">
+    <!-- 해당 기능의 정확한 용도가 확인되지 않아 임시로 주석 처리함 -->
+    <!-- <div id="skipNavigation">
+        <p><a href="#category">전체상품목록 바로가기</a></p>
+        <p><a href="#contents">본문 바로가기</a></p>
+    </div> -->
+
+    <!--top_banner/text_fixed-->
+<!-- ##module_info #Layout #RibbonBanner_Text #Header_Top_Banner #Top_Banner #top_banner_A_a -->
+<div class="top_banner top_banner_A_a">
+<div class="top_banner_box">
+<a class="text_wrapper" href="/member/agreement.html">
+<span>지금 바로 회원 가입하고 다양한 혜택을 만나보세요</span>
+</a>
+<a class="btn_banner_close" href="#"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewbox="0 0 16 16" class="icon" fill="none" stroke="var(--black-color-70)" aria-hidden="true">
+    <path d="M12.2287 3.61328L3.61328 12.2287M3.61328 3.61328L12.2287 12.2287" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg></a>
+</div>
+</div>
+
+
+
+    <!--move_to_top/move_to_top-->
+<!-- ##module_info #Layout #MoveToTop -->
+
+<div class="moveToTop_module">
+    <button type="button" class="top_button">
+        <span><svg width="10" height="5" viewbox="0 0 10 5" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 4.5L5 0.5L1 4.5" stroke="white" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+        <span>TOP</span>
+    </button>
+</div>
+
+
+
+    
+
+    <!-- header 영역 -->
+    
+    
+    <!-- ##module_info #Layout #header #header_A -->
+<header class="layout3 header_A" id="header">
+<div class="inner">
+<div class="top_nav_box" id="top_nav_box">
+<div class="logo_area">
+<!-- 로고 -->
+<div class="xans-element- xans-layout xans-layout-logotop top_logo "><a class="notranslate" href="/">wild-bread</a>
+</div>
+<!-- 멀티샵 -->
+</div>
+<!-- 메뉴 -->
+<div class="menu_box pc">
+<div class="xans-element- xans-layout xans-layout-category top_category"><ul>
+<li class="xans-record-"><a href="/category/쌀빵/42/">쌀빵</a></li>
+<li class="xans-record-"><a href="/category/사워도우/43/">사워도우</a></li>
+<li class="xans-record-"><a href="/category/웰니스-디저트/44/">웰니스 디저트</a></li>
+<li class="xans-record-"><a href="/category/비건-베이커리/45/">비건 베이커리</a></li>
+<li class="xans-record-"><a href="/category/식사빵/46/">식사빵</a></li>
+<li class="xans-record-"><a href="/category/도매대량구매/47/">도매/대량구매</a></li>
+<li class="xans-record-"><a href="/category/선물세트/48/">선물세트</a></li>
+<li class="xans-record-"><a href="/category/잼스프레드/49/">잼/스프레드</a></li>
+<li>
+<a href="#">고객센터</a>
+<ul class="xans-element- xans-layout xans-layout-boardinfo sub_cate01"><li class="xans-record-"><a href="/board/공지사항/1/">공지사항</a></li>
+<li class="xans-record-"><a href="/board/상품-사용후기/4/">상품 사용후기</a></li>
+<li class="xans-record-"><a href="/board/상품-qa/6/">상품 Q&A</a></li>
+<li class="xans-record-"><a href="/board/자유게시판/5/">자유게시판</a></li>
+<li class="xans-record-"><a href="/board/갤러리/8/">갤러리</a></li>
+</ul>
+</li>
+<!--  직접 등록 영역 시작 -->
+<!-- <li>
+                            <a href="#">스토어</a>
+                            <ul class="sub_cate01">
+                                <li><a href="#" class="view">스마트스토어</a></li>
+                                <li><a href="#" class="view">유튜브쇼핑</a></li>
+                            </ul>
+                        </li> -->
+<!--  직접 등록 영역 끝 -->
+</ul>
+</div>
+</div>
+<!-- 모바일 햄버거바 -->
+<div class="top_nav">
+<a class="eNavFold" href="javascript:;" role="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M21 11.0996C21.4971 11.0996 21.9004 11.5029 21.9004 12C21.9004 12.4971 21.4971 12.9004 21 12.9004H3C2.50294 12.9004 2.09961 12.4971 2.09961 12C2.09961 11.5029 2.50294 11.0996 3 11.0996H21Z"></path>
+    <path d="M21 18.0996C21.4971 18.0996 21.9004 18.5029 21.9004 19C21.9004 19.4971 21.4971 19.9004 21 19.9004H3C2.50294 19.9004 2.09961 19.4971 2.09961 19C2.09961 18.5029 2.50294 18.0996 3 18.0996H21Z"></path>
+    <path d="M21 4.09961C21.4971 4.09961 21.9004 4.50294 21.9004 5C21.9004 5.49706 21.4971 5.90039 21 5.90039H3C2.50294 5.90039 2.09961 5.49706 2.09961 5C2.09961 4.50294 2.50294 4.09961 3 4.09961H21Z"></path>
+</svg>카테고리</a>
+<a href="/myshop/index.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M19.3271 21.2305V19.1787C19.3271 17.4126 17.8898 15.9766 16.1123 15.9766H7.88379C6.10633 15.9766 4.66994 17.4126 4.66992 19.1787V21.2305C4.66968 21.7273 4.26644 22.1299 3.76953 22.1299C3.27263 22.1299 2.86938 21.7273 2.86914 21.2305V19.1787C2.86915 16.4136 5.11706 14.1758 7.88379 14.1758H16.1123C18.879 14.1758 21.1269 16.4136 21.127 19.1787V21.2305C21.1267 21.7273 20.7235 22.1299 20.2266 22.1299C19.7297 22.1298 19.3274 21.7273 19.3271 21.2305Z"></path>
+    <path d="M15.2148 6.87207C15.2148 5.10577 13.7786 3.66992 12.001 3.66992C10.2234 3.66994 8.78712 5.10578 8.78711 6.87207C8.78711 8.63837 10.2234 10.0742 12.001 10.0742C13.7786 10.0742 15.2148 8.63838 15.2148 6.87207ZM17.0156 6.87207C17.0156 9.63733 14.7679 11.875 12.001 11.875C9.2341 11.875 6.98633 9.63732 6.98633 6.87207C6.98634 4.10683 9.23411 1.86916 12.001 1.86914C14.7679 1.86914 17.0156 4.10682 17.0156 6.87207Z"></path>
+</svg>
+마이페이지</a>
+</div>
+<!-- 아이콘 영역 -->
+<div class="top_mypage">
+<a href="/member/login.html" class="xans-element- xans-layout xans-layout-statelogoff pc ">로그인
+</a>
+<a href="/member/agreement.html" class="xans-element- xans-layout xans-layout-statelogoff pc ">회원가입
+</a>
+<span class="bar pc"></span>
+<a class="eSearch" href="javascript:;" role="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M21.7177 20.3541C22.0941 20.7305 22.0941 21.3414 21.7177 21.7177C21.3414 22.0941 20.7305 22.0941 20.3541 21.7177L15 16.3636L16.3636 15L21.7177 20.3541Z"></path>
+    <path d="M17.2002 10.5C17.2002 6.79969 14.2003 3.7998 10.5 3.7998C6.79969 3.7998 3.7998 6.79969 3.7998 10.5C3.7998 14.2003 6.79969 17.2002 10.5 17.2002V19C5.80558 19 2 15.1944 2 10.5C2 5.80558 5.80558 2 10.5 2C15.1944 2 19 5.80558 19 10.5C19 15.1944 15.1944 19 10.5 19V17.2002C14.2003 17.2002 17.2002 14.2003 17.2002 10.5Z"></path>
+</svg>
+검색</a>
+<a class="pc" href="/myshop/index.html"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M19.3271 21.2305V19.1787C19.3271 17.4126 17.8898 15.9766 16.1123 15.9766H7.88379C6.10633 15.9766 4.66994 17.4126 4.66992 19.1787V21.2305C4.66968 21.7273 4.26644 22.1299 3.76953 22.1299C3.27263 22.1299 2.86938 21.7273 2.86914 21.2305V19.1787C2.86915 16.4136 5.11706 14.1758 7.88379 14.1758H16.1123C18.879 14.1758 21.1269 16.4136 21.127 19.1787V21.2305C21.1267 21.7273 20.7235 22.1299 20.2266 22.1299C19.7297 22.1298 19.3274 21.7273 19.3271 21.2305Z"></path>
+    <path d="M15.2148 6.87207C15.2148 5.10577 13.7786 3.66992 12.001 3.66992C10.2234 3.66994 8.78712 5.10578 8.78711 6.87207C8.78711 8.63837 10.2234 10.0742 12.001 10.0742C13.7786 10.0742 15.2148 8.63838 15.2148 6.87207ZM17.0156 6.87207C17.0156 9.63733 14.7679 11.875 12.001 11.875C9.2341 11.875 6.98633 9.63732 6.98633 6.87207C6.98634 4.10683 9.23411 1.86916 12.001 1.86914C14.7679 1.86914 17.0156 4.10682 17.0156 6.87207Z"></path>
+</svg>
+마이페이지</a>
+<a href="/order/basket.html" class="xans-element- xans-layout xans-layout-orderbasketcount btn_cart "><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M19.866 6.7723L17.3919 3.63229H6.60805L4.13404 6.7723V19.3473C4.13416 19.8745 4.59424 20.3676 5.24635 20.3677H18.7536C19.4058 20.3676 19.8658 19.8745 19.866 19.3473V6.7723ZM21.5 19.3473C21.4999 20.8494 20.2333 21.9999 18.7536 22H5.24635C3.76666 21.9999 2.50011 20.8494 2.5 19.3473V6.48929C2.50009 6.3064 2.56141 6.12881 2.67458 5.98505L5.56957 2.31091L5.63142 2.24116C5.78384 2.08773 5.99208 2.00009 6.21102 2H17.789L17.8818 2.00498C18.0969 2.02961 18.2948 2.13905 18.4304 2.31091L21.3254 5.98505C21.4386 6.12881 21.4999 6.3064 21.5 6.48929V19.3473Z"></path>
+    <path d="M20.1722 6.08179C20.6235 6.08179 20.9892 6.44708 20.9892 6.89793C20.9892 7.34878 20.6235 7.71407 20.1722 7.71407H3.82776C3.37643 7.71407 3.01074 7.34878 3.01074 6.89793C3.01074 6.44708 3.37643 6.08179 3.82776 6.08179H20.1722Z"></path>
+    <path d="M7.60742 9.95921C7.60742 9.50836 7.9731 9.14307 8.42444 9.14307C8.87578 9.14307 9.24147 9.50836 9.24147 9.95921C9.24147 11.8683 10.5757 13.2248 11.9998 13.2248C13.4238 13.2248 14.7581 11.8683 14.7581 9.95921C14.7581 9.50836 15.1238 9.14307 15.5751 9.14307C16.0265 9.14307 16.3922 9.50836 16.3922 9.95921C16.3922 12.5584 14.5247 14.8571 11.9998 14.8571C9.47487 14.8571 7.60742 12.5584 7.60742 9.95921Z"></path>
+</svg>
+
+장바구니
+<span class="count displaynone EC-Layout_Basket-count-display"><span class="EC-Layout-Basket-count">0</span></span>
+</a>
+</div><!-- //top_mypage -->
+</div><!-- //top_nav_box -->
+</div><!-- //inner -->
+</header>
+<form id="searchBarForm" name="" action="/product/search.html" method="get" target="_self" enctype="multipart/form-data" >
+<input id="banner_action" name="banner_action" value="" type="hidden"  /><div class="xans-element- xans-layout xans-layout-searchheader "><!--
+        $product_page=/product/detail.html
+        $category_page=/product/list.html
+    -->
+<fieldset>
+<legend>Search</legend>
+        <input id="keyword" name="keyword" fw-filter="" fw-label="검색어" fw-msg="" class="inputTypeText" placeholder="" onmousedown="SEARCH_BANNER.clickSearchForm(this)" value="" type="text"  /><span alt="Search" onclick="SEARCH_BANNER.submitSearchBanner(this); return false;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M21.7177 20.3541C22.0941 20.7305 22.0941 21.3414 21.7177 21.7177C21.3414 22.0941 20.7305 22.0941 20.3541 21.7177L15 16.3636L16.3636 15L21.7177 20.3541Z"></path>
+    <path d="M17.2002 10.5C17.2002 6.79969 14.2003 3.7998 10.5 3.7998C6.79969 3.7998 3.7998 6.79969 3.7998 10.5C3.7998 14.2003 6.79969 17.2002 10.5 17.2002V19C5.80558 19 2 15.1944 2 10.5C2 5.80558 5.80558 2 10.5 2C15.1944 2 19 5.80558 19 10.5C19 15.1944 15.1944 19 10.5 19V17.2002C14.2003 17.2002 17.2002 14.2003 17.2002 10.5Z"></path>
+</svg>
+</span><ul class="autoDrop" id=""></ul>
+</fieldset>
+</div>
+</form>
+    <!-- aside 영역 -->
+    
+    <!-- ##module_info #Layout #aside #aside_A -->
+<aside id="aside" class="xans-element- xans-layout xans-layout-slidepackage aside_A "><button class="btnClose" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 24 24" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M19.3077 3.29014C19.6949 2.90333 20.3225 2.90324 20.7096 3.29014C21.0968 3.67736 21.0968 4.30586 20.7096 4.69308L4.69308 20.7096C4.30586 21.0968 3.67736 21.0968 3.29014 20.7096C2.90324 20.3225 2.90333 19.6949 3.29014 19.3077L19.3077 3.29014Z"></path>
+    <path d="M3.29041 3.29041C3.67762 2.9032 4.30612 2.9032 4.69333 3.29041L20.7097 19.3078C21.0967 19.695 21.0968 20.3225 20.7097 20.7097C20.3225 21.0968 19.695 21.0967 19.3078 20.7097L3.29041 4.69333C2.9032 4.30612 2.9032 3.67762 3.29041 3.29041Z"></path>
+</svg>닫기</button>
+<div class="navigation_member">
+<div class="navigation_state">
+<div class="user-info">
+<p class="xans-element- xans-layout xans-layout-statelogoff ">로그인이 필요합니다.
+</p>
+</div>
+<a href="/member/agreement.html" class="xans-element- xans-layout xans-layout-statelogoff btnEm ">회원가입
+</a>
+<a href="/member/login.html" class="xans-element- xans-layout xans-layout-statelogoff btnSubmit header-login-btn ">로그인
+</a>
+</div>
+<!-- //navigation_state -->
+</div>
+<!-- //navigation_member -->
+<nav class="navigation-menu" role="navigation">
+<div id="slideCateList" class="xans-element- xans-layout xans-layout-category navigation-menu__category"><span>카테고리</span>
+<ul id="slide_add_category">
+<li class="xans-record-"><span class="view"><a href="/category/쌀빵/42/">쌀빵</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/사워도우/43/">사워도우</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/웰니스-디저트/44/">웰니스 디저트</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/비건-베이커리/45/">비건 베이커리</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/식사빵/46/">식사빵</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/도매대량구매/47/">도매/대량구매</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/선물세트/48/">선물세트</a><span class="more"></span></span></li>
+<li class="xans-record-"><span class="view"><a href="/category/잼스프레드/49/">잼/스프레드</a><span class="more"></span></span></li>
+</ul>
+<div class="community_box">
+<a href="#">고객센터</a>
+<ul class="xans-element- xans-layout xans-layout-boardinfo sub_cate01"><li class="xans-record-"><a class="view" href="/board/공지사항/1/">공지사항</a></li>
+<li class="xans-record-"><a class="view" href="/board/상품-사용후기/4/">상품 사용후기</a></li>
+<li class="xans-record-"><a class="view" href="/board/상품-qa/6/">상품 Q&A</a></li>
+<li class="xans-record-"><a class="view" href="/board/자유게시판/5/">자유게시판</a></li>
+<li class="xans-record-"><a class="view" href="/board/갤러리/8/">갤러리</a></li>
+</ul>
+</div>
+</div>
+<!-- //menu-side/1 -->
+</nav>
+</aside>
+
+
+    <div id="wrap">
+        <div id="container" role="main">
+            <div id="contents">
+                <span class="xans-element- xans-layout xans-layout-mobileaction "><a href="#none" onclick="history.go(-1);return false;" role="button"><img src="/SkinImg/img/ico_mo_arrow_left.png" alt="뒤로가기"/></a>
+</span>
+                
+<style>
+    #totalProducts { margin: 0; }
+    #totalProducts .ec-base-help { display: none; }
+    #totalProducts .no_option tbody tr td { padding: 24px 12px 24px 0 !important; font-size: 17px !important; font-weight: 500 !important;}
+    #totalProducts .no_option tbody tr td:last-child { padding-right:0 !important; }
+    #totalProducts .no_option tbody tr td.middle { padding: 0 !important; }
+    #totalProducts .no_option tbody tr td.middle tbody tr th,
+    #totalProducts .no_option tbody tr td.middle tbody tr td { padding: 0 0 10px !important; }
+    #totalProducts .no_option tbody tr td.middle tbody tr:last-child th,
+    #totalProducts .no_option tbody tr td.middle tbody tr:last-child td { padding: 10px 0 24px 0 !important; }
+    #totalProducts tbody td{ position:relative; border-color: #e5e5e5 !important; }
+    #totalProducts tbody td p { padding: 0; font-size: 17px; font-weight: 500; }
+    #totalProducts tbody td p span { font-size: 17px !important; font-weight: 500 !important; }
+    #totalProducts tbody td p.product span { margin-top: 5px; font-size: 15px !important; color: var(--gray-color); }
+    #totalProducts tbody td p.product + p.product{margin-top:10px;}
+    #totalProducts > table > tbody > tr:first-child > td { position: relative;}
+    #totalProducts tbody td .quantity {border: 1px solid #C5C5C8; border-radius: 6px; text-align:center; box-sizing:border-box; width: 103px !important;}
+    #totalProducts tbody td .quantity input {width: 45px; height: 30px !important; border: none; font-size: 14px; font-weight: 400; color: var(--black-color); line-height: 30px !important; background: none; text-align: center; }
+    #totalProducts tbody td .quantity a { width: 30px; height: 30px; }
+    #totalProducts tbody td .quantity a img { display: none; }
+    #totalProducts tbody td .quantity > a:has(.up), #totalProducts tbody td .quantity > a:has(.down) { position: absolute; top: auto; bottom: 0; }
+    #totalProducts tbody td .quantity > a:has(.up) { right: 0; }
+    #totalProducts tbody td .quantity > a:has(.down) { left: 0; }
+    #totalProducts tbody td .quantity > a:has(.up):before,
+    #totalProducts tbody td .quantity .up:before,
+    #totalProducts tbody td .quantity .eAddProductQuantityUpClass:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .quantity > a:has(.up):after,
+    #totalProducts tbody td .quantity .up:after,
+    #totalProducts tbody td .quantity .eAddProductQuantityUpClass:after { content: ''; position: absolute; top: 50%; left: 50%; width: 1px; height: 12px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .quantity > a:has(.down):before,
+    #totalProducts tbody td .quantity .down:before,
+    #totalProducts tbody td .quantity .eAddProductQuantityDownClass:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .mileage { font-size: 12px; }
+    #totalProducts tbody td .delete img,
+    #totalProducts tbody td.center > a img { opacity:0; height:100%; width:100%; }
+    #totalProducts tbody.option_products tr td:nth-child(2):not(.right),
+    #totalProducts tbody.add_products tr td:nth-child(2):not(.right) { padding-right:0 !important; text-align:center; white-space:nowrap; }
+    #totalProducts tr.add_product > td { position: relative; padding: 27px 0; }
+    #totalProducts tr.option_product > td { position: relative; padding: 0 !important; }
+    #totalProducts tr.add_product > td > table tr:first-child td,
+    #totalProducts tr.option_product > td > table tr:first-child td { padding: 0 10px 24px 0 !important; }
+    #totalProducts tr.option_product > td > table tr:first-child td:last-child { padding-right: 0 !important; }
+    #totalProducts tr.option_product > td > table tr.option tbody tr th,
+    #totalProducts tr.option_product > td > table tr.option tbody tr td { padding: 0 0 10px !important; }
+    #totalProducts tr.option_product > td > table tr.option tbody tr:last-child th,
+    #totalProducts tr.option_product > td > table tr.option tbody tr:last-child td { padding: 0 !important; }
+    #totalProducts tbody td .product + p:not(.product) { display: flex; position: relative; overflow: hidden; width: auto !important; max-width: 100px; margin-top: 10px; border: 1px solid #C5C5C8; border-radius: 6px; font-size: 0; }
+    #totalProducts tbody td .product + p input[type=number],
+    #totalProducts tbody td .product + p:not(.product) input.quantity_opt { order: 2; min-width: 30px; height: 30px !important; padding: 0 30px; border: none; font-size: 14px; font-weight: 400; color: var(--black-color); line-height: 30px !important; text-align: center; }
+    #totalProducts tbody td .product + p:not(.product) a { position: absolute; top: 0; width: 30px; min-width: 30px; height: 30px; }
+    #totalProducts tbody td .product + p:not(.product) a img { display: none; }
+    #totalProducts tbody td .product + p:not(.product) > a:has(.QuantityUp),
+    #totalProducts tbody td .product + p:not(.product) .up,
+    #totalProducts tbody td .product + p:not(.product) .eProductQuantityUpClass,
+    #totalProducts tbody td .product + p:not(.product) .eAddProductQuantityUpClass { right: 0; }
+    #totalProducts tbody td .product + p:not(.product) > a:has(.QuantityUp):before,
+    #totalProducts tbody td .product + p:not(.product) .up:before,
+    #totalProducts tbody td .product + p:not(.product) .eProductQuantityUpClass:before,
+    #totalProducts tbody td .product + p:not(.product) .eAddProductQuantityUpClass:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .product + p:not(.product) > a:has(.QuantityUp):after,
+    #totalProducts tbody td .product + p:not(.product) .up:after,
+    #totalProducts tbody td .product + p:not(.product) .eProductQuantityUpClass:after,
+    #totalProducts tbody td .product + p:not(.product) .eAddProductQuantityUpClass:after { content: ''; position: absolute; top: 50%; left: 50%; width: 1px; height: 12px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .product + p:not(.product) > a:has(.QuantityDown),
+    #totalProducts tbody td .product + p:not(.product) .down,
+    #totalProducts tbody td .product + p:not(.product) .eProductQuantityDownClass,
+    #totalProducts tbody td .product + p:not(.product) .eAddProductQuantityDownClass { left: 0; }
+    #totalProducts tbody td .product + p:not(.product) > a:has(.QuantityDown):before,
+    #totalProducts tbody td .product + p:not(.product) .down:before,
+    #totalProducts tbody td .product + p:not(.product) .eProductQuantityDownClass:before,
+    #totalProducts tbody td .product + p:not(.product) .eAddProductQuantityDownClass:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    #totalProducts tbody td .delete,
+    #totalProducts tbody td.center > a { display:inline-block; background:url(/SkinImg/img/ico_x.svg) no-repeat; margin:0; transform:none; height:16px; width:16px; }
+    #totalProducts tbody td .delete { margin:8px 0 0 10px;}
+    #totalProducts .option_product thead { display:none }
+    
+    .couponDownResult.ec-base-layer .close{position:absolute;}
+    .path { margin: 15px 0 20px !important; }
+    .xans-product-detail { padding: 0; }
+    .xans-product-detail .detailArea { display: flex; padding: 0; gap: 90px; }
+    .xans-product-detail .detailArea::after { display: none; }
+    .xans-product-detail .detailArea .xans-product-action { padding: 0; gap: 10px; }
+    .xans-product-detail .headingArea { display: none; }
+    .xans-product-detail .imgArea { display: flex; width: calc((100% - 90px) / 2 + 65px); float: unset; margin: 0; flex-direction: column; }
+    .xans-product-detail .imgArea .keyImg { width: 100%; margin: 0 0 20px; }
+    .xans-product-detail .imgArea .keyImg a img { width: 100%; max-width: 100%; height: 100%; object-fit: cover; box-sizing: border-box; }
+    .xans-product-detail .imgArea .keyImg .thumbnail { width: 100%; aspect-ratio: 1; }
+    .xans-product-detail .imgArea .keyImg .thumbnail #zoomMouseGiude { display: none !important; }
+    .xans-product-detail .imgArea .keyImg #zoom_wrap img { object-fit: cover; }
+    .xans-product-detail .imgArea .color { display: none; }
+    .xans-product-detail .imgArea .control { display: none; }
+    .xans-product-detail .imgArea .likeButton { display: none; }
+    .xans-product-detail .imgArea .listImg { width: auto; margin: 0; overflow: hidden; }
+    .xans-product-detail .imgArea .listImg ul { height: auto; margin: 0; }
+    .xans-product-detail .imgArea .listImg ul::-webkit-scrollbar { display: none; }
+    .xans-product-detail .imgArea .listImg li { width: auto; margin: 0; }
+    .xans-product-detail .imgArea .listImg li img { width: 100px; height: 80px; border: none; object-fit: cover; }
+    .xans-product-detail .imgArea .listImg button { display: none !important; }
+    .xans-product-detail .infoArea { position: relative; width: calc((100% - 90px) / 2 - 65px); }
+    .xans-product-detail .infoArea table { margin: 0; }
+    .xans-product-detail .infoArea .ec-base-qty { display: flex; width: auto !important; max-width:100px; border: 1px solid #C5C5C8; border-radius: 6px; }
+    .xans-product-detail .infoArea .ec-base-qty a { border: none; }
+    .xans-product-detail .infoArea .ec-base-qty input { min-width: 30px; height: 30px !important; padding: 0; border: none; font-size: 14px; font-weight: 400; color: var(--black-color); line-height: 30px !important; text-align: center; }
+    .xans-product-detail .infoArea .ec-base-qty .qtyUp:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    .xans-product-detail .infoArea .ec-base-qty .qtyUp:after { content: ''; position: absolute; top: 50%; left: 50%; width: 1px; height: 12px; margin: 0; background: var(--gray-color); transform: translate(-50%,-50%); }
+    .xans-product-detail .infoArea .ec-base-qty .qtyDown:before { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 1px; background: var(--gray-color); transform: translate(-50%,-50%); }
+    .xans-product-detail .infoArea select { height: 32px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 400; color: var(--black-color); }
+    .xans-product-detail .infoArea th,
+    .xans-product-detail .infoArea .xans-product-quantity dt { width: 120px; max-width: 120px; padding: 0 0 16px; }
+    .xans-product-detail .infoArea th span,
+    .xans-product-detail .infoArea td span { font-weight: inherit; word-break: break-word; }
+    .xans-product-detail .infoArea .info_table > tbody > tr > th,
+    .xans-product-detail .infoArea .info_table > tbody > tr > td { padding: 10px 0 !important; vertical-align: top; }
+    .xans-product-detail .infoArea .product_price + tr th,
+    .xans-product-detail .infoArea .product_price + tr td { padding-top: 20px; border-top: 1px solid #C5C5C8; }
+    .xans-product-detail .infoArea .top_btn { position: absolute; top: 0; right: 0; z-index: 10; }
+    .xans-product-detail .infoArea .top_btn a { margin-left: 12px; }
+    .xans-product-detail .infoArea .top_btn a img { width: 24px; height: 24px; object-fit: contain; }
+    .xans-product-detail .infoArea .top_btn .wish { display: none; width: 30px; height: 30px; margin: 0; padding: 0 !important; align-items: center; justify-content: center; cursor: pointer; }
+    .xans-product-detail .infoArea .top_btn .wish img { width: 100%; height: 100%; object-fit: contain; }
+    .xans-product-detail .infoArea .top_btn .wish svg { display: none; width: 100%; margin: 0; fill: var(--gray-color); }
+    .xans-product-detail .infoArea .top_btn .wish .heart_fill { fill: var(--point-color); }
+    .xans-product-detail .infoArea .top_btn .wish.active svg { fill: var(--point-color); }
+    .xans-product-detail .infoArea .icon_box { padding-right: 30px; }
+    .xans-product-detail .infoArea .icon_box .icon { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .xans-product-detail .infoArea .icon_box .icon img { max-height: 20px; object-fit: contain; padding-bottom: 10px; }
+    .xans-product-detail .infoArea .title_area h2 { margin-bottom: 16px; font-size: 24px; font-weight: 500; color: var(--black-color); }
+    .xans-product-detail .infoArea .title_area .price_box { display: flex; margin-bottom: 16px; gap: 10px; align-items: flex-end; }
+    .xans-product-detail .infoArea .title_area .price_box span:first-child { display: block; font-size: 28px; font-weight: 800; color: var(--black-color); }
+    .xans-product-detail .infoArea .title_area .price_box .sale_price + span { font-size: 20px; font-weight: 400; color: var(--gray-color); }
+    .xans-product-detail .infoArea .title_area .price_box .sale_parsent { font-size: 20px; font-weight: 800; color: var(--point-color); }
+    .xans-product-detail .infoArea .qr_box td > span { display: flex; gap: 10px; flex-wrap: wrap; }
+    .xans-product-detail .infoArea .qr_box td > span > div { float: unset !important; width: auto !important; padding: 0 !important; }
+    .xans-product-detail .infoArea .qr_box td > span > div > img { width: 60px; }
+    .xans-product-detail .infoArea .qr_box td > span > div:nth-child(2) { display: flex; flex-direction: column; }
+    .xans-product-detail .infoArea .xans-product-option tr th { display: table-cell; border: none !important; font-size: 14px; font-weight: 400; color: var(--black-color); vertical-align: middle; word-break: break-word; }
+    .xans-product-detail .infoArea .xans-product-option tr td { padding-left: 10px !important; padding-right: 0; border: none !important; }
+    .xans-product-detail .infoArea .xans-product-option tr:last-child th,
+    .xans-product-detail .infoArea .xans-product-option tr:last-child td { padding-bottom: 20px; }
+    .xans-product-detail .infoArea .xans-product-addoption .txtByte { font-size: 14px; }
+    .xans-product-detail .infoArea .xans-product-addoption .txtByte strong { color: var(--black-color); }
+    .xans-product-detail .infoArea .xans-product-addoption input[type="text"] { width: calc(100% - 100px); margin-right: 7px; }
+    .xans-product-detail .infoArea .xans-product-quantity dt,
+    .xans-product-detail .infoArea .xans-product-quantity dd { padding: 10px 0 20px; }
+    .xans-product-detail .infoArea .xans-product-quantity dd { float: right; width: calc(100% - 150px); padding-left: 10px !important; }
+    .xans-product-detail .infoArea .no_option tr td { font-size: 14px !important; font-weight: 400 !important; color: var(--black-color) !important; }
+    .xans-product-detail .infoArea .no_option tr td .quantity_price { text-wrap: nowrap; font-size: 17px !important; }
+    .xans-product-detail .infoArea .no_option tr:first-child td { padding: 10px 0; }
+    .xans-product-detail .infoArea .no_option col:nth-child(1){width:284px !important;}
+    .xans-product-detail .infoArea .xans-product-action:not(.gFixed) { padding: 40px 0 0; }
+    .xans-product-detail .infoArea .xans-product-action .gMessage { display: none !important; }
+    .xans-product-detail .infoArea .xans-product-action .ec-base-button { flex-wrap:wrap; }
+    .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) { order:2; }
+    .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_wish { order:3; }
+    .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_cart,
+    .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_soldout { order:4; }
+    .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_buy { order:1; flex-basis:auto; width:100%; }
+    .xans-product-detail .infoArea #btn_restock { margin-left: 4px; }
+    .xans-product-detail .infoArea .supply { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+    .xans-product-detail .infoArea .supply span { width: 140px; }
+    .xans-product-detail .productSet .product { display: none !important; margin-bottom: 24px; }
+    .xans-product-detail .productSet.active .product { display: block !important; }
+    .xans-product-detail .productSet.active .toggle { transform: rotate(180deg); }
+    .xans-product-detail .productSet:not(.additional) .product { display: block !important; }
+    .xans-product-detail .shippingFee .ec-base-tooltip,
+    .xans-product-detail .mileage_tooltip .mileage_layer { z-index:100; }
+    .totalPrice { display: flex; margin: 0; padding: 20px 0 0; border-top: 1px solid #e5e5e5; font-size: 14px; align-items: center; }
+    .totalPrice > strong { font-size: 17px; font-weight: 500; color: var(--black-color); }
+    .totalPrice .total { margin: 0 0 0 auto; font-size: 17px; }
+    .totalPrice .total .price,
+    .totalPrice .total strong em { font-size: 28px; font-weight: 700; color: var(--black-color); }
+    
+    /* 상품명 항목명,폰트 스타일 강제 적용 */
+    .xans-product-detail .detailArea .info_table > tbody > tr:first-child.xans-record- > th:nth-of-type(1) { display: none; }
+    .xans-product-detail .detailArea .info_table > tbody > tr:first-child.xans-record- > td:nth-of-type(1) { padding: 0 30px 16px 0 !important; }
+    .xans-product-detail .detailArea .info_table > tbody > tr:first-child.xans-record- > td:nth-of-type(1) span { font-size: var(--font-size-xl) !important; font-weight: var(--font-weight-semi-bold) !important; color: var(--black-color) !important; }
+
+    /* 상품정보 */
+    #wrap:has(.header_L) .xans-product-additional .menu.fixed,
+    #wrap:has(.header_R) .xans-product-additional .menu.fixed { position: sticky; }
+    .ec-base-tab > h3 { margin-top: 100px; padding: 30px 0; font-size: 20px; font-weight: 600; color: var(--black-color); text-transform: capitalize; }
+    .xans-coupon-productdetailajax { margin-top: 50px; }
+    .xans-coupon-productdetailajax > .title { border: none; }
+    .xans-coupon-productdetailajax > .title h3 { padding: 0; text-align: center; }
+    .xans-coupon-productdetailajax > .title h3 span { font-size: 17px; font-weight: 500; color: var(--black-color); }
+    .xans-coupon-productdetailajax > .title .button { padding: 0; }
+    .xans-coupon-productdetailajax > .title .button a { height: 33px; padding: 0 12px; font-size: 14px; font-weight: 500; line-height: 33px; color: var(--black-color); border: 1px solid var(--black-color); border-radius: 4px; text-transform: uppercase; }
+    .xans-coupon-productdetailajax .couponSkinArea ul { display: flex; width: auto !important; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .xans-coupon-productdetailajax .couponSkinArea ul:after { display: none; }
+    .xans-coupon-productdetailajax .couponSkinArea ul li { margin: 0 !important; }
+    .xans-product-additional { margin-top: 50px; }
+    .xans-product-additional #prdDetail { padding-top: 30px; }
+    .xans-product-additional .menu { display: flex; width: 100%; max-width: var(--max-width); margin: 0; border: none; background: none; }
+    .xans-product-additional .menu.fixed { position: fixed; top: 0; z-index: 999; background: #fff; }
+    .xans-product-additional .menu li { flex: 1; border: none; border-bottom: 1px solid #e5e5e5; background: none !important; text-align: center; }
+    .xans-product-additional .menu li a { display: block; width: 100%; height: 100%; padding: 20px 0; font-size: 17px; font-weight: 500; color: var(--gray-color); background: none !important; text-transform: capitalize; box-sizing: border-box; }
+    .xans-product-additional .menu li a span { margin-left: 5px; font-size: 17px; font-weight: 500; color: var(--gray-color); }
+    .xans-product-additional .menu li.selected { border: none; border-bottom: 3px solid var(--black-color); }
+    .xans-product-additional .menu li.selected a,
+    .xans-product-additional .menu li.selected a span { color: var(--black-color); }
+    .xans-product-additional { margin-bottom: 200px; }
+    .xans-product-additional .cont { padding: 0; font-size: 13px; font-weight: 400; color: var(--gray-color); }
+    .xans-product-additional .cont h3 { position: relative; margin: 0; padding: 20px 10px; border-bottom: 1px solid #ECECEC; font-size: 14px; font-weight: 500; color: var(--black-color); cursor: pointer; }
+    .xans-product-additional .cont h3:after { content: ''; position: absolute; top: 50%; right: 0; display: block; width: 7px; height: 7px; border-top: 1px solid var(--black-color); border-right: 1px solid var(--black-color); transform: translate(-50%,-50%) rotate(135deg); transition: transform 0.5s; }
+    .xans-product-additional .cont h3.active:after { transform: translate(-50%,calc(-50% + 3px)) rotate(-45deg); }
+    .xans-product-additional .cont li,
+    .xans-product-additional .cont .info_box { font-size: var(--font-size-2xs); font-weight: 400; color: var(--gray-color) }
+    .xans-product-additional .cont .info_box { transition: padding 0.3s, max-height 0.4s ease; }
+    .xans-product-additional div.board p.nodata { margin: 80px 0; border: none; font-size: 14px; font-weight: 400; line-height: 20px; color: var(--black-color); }
+    .xans-product-additional div.board .ec-base-button.typeBorder { margin: 0; padding: 0; border: none; }
+    .xans-product-additional div.board td .view { padding: 20px 0; }
+    .xans-product-additional div.board form[id*=commentWriteForm] { padding: 0 !important; }
+    .xans-product-additional .ec-base-table.typeList th { border-bottom: 1px solid #C5C5C8; font-size: 14px; font-weight: 500; background: none; text-transform: capitalize; }
+    .xans-product-additional .ec-base-table.typeList td { font-size: 14px; color: var(--black-color); }
+    .xans-product-additional .ec-base-table.typeList td .ec-common-rwd-image { margin-left: 5px; vertical-align:middle; }
+    .xans-product-additional .ec-base-table.typeList td:nth-child(n+3) { color: var(--gray-color); }
+    .xans-product-additional .ec-base-tab .ec-base-button { margin-top: 20px !important; }
+    .xans-product-additional .memoCont { background-color:var(--black-color-10); border-color:var(--black-color-20); margin: 0; }
+    .xans-product-additional .memoCont .user { display:flex; flex-wrap:wrap; gap:12px 20px; }
+    .xans-product-additional .memoCont .user textarea { flex:1; background-color:var(--white-color); border:1px solid var(--black-color-30); border-radius:4px; box-sizing:border-box; color:var(--black-color); height:60px; }
+    .xans-product-additional .memoCont .user .btnSubmit { height:auto; width:108px; }
+    .xans-product-additional .memoCont .nameArea { margin:0; width:100%; }
+    .xans-product-additional .memoCont .nameArea input[type=checkbox]::before { box-shadow: none; }
+    .xans-product-additional .boardComment { padding: 0; }
+    .xans-product-additional .boardComment li .name { padding-left: 9px; font-size: 14px; font-weight: 500; }
+    .xans-product-additional .boardComment li .name a { color: var(--black-color); }
+    .xans-product-additional .boardComment li .date { font-size: 14px; font-weight: 500; }
+    .xans-product-additional .boardComment li .comment span { font-size: 14px; }
+    .xans-product-relation .relation { padding: 120px 0; }
+    .xans-product-relation .relation .relation_slide { overflow: hidden; }
+    .xans-product-relation .relation h3 { margin-bottom: 30px; padding: 0; font-size: var(--font-size-lg); font-weight: var(--font-weight-semi-bold); color: var(--text-black); }
+    .xans-product-relation .relation ul.prdList { display: inline-flex; min-width: unset; margin: 0; }
+    .xans-product-relation .relation ul.prdList li.item { margin: 0; }
+    .xans-product-relation .relation ul.prdList li.item .thumb { width: 100%; height: auto; object-fit: cover; aspect-ratio: 1 / 1; margin-bottom:26px; }
+    .xans-product-relation .relation ul.prdList li.item .box { line-height: var(--line-height-lg); width: 100%; word-break: break-word; }
+    .xans-product-relation .relation ul.prdList li.item .box a { display: block; width: 100%; }
+    .xans-product-relation .relation ul.prdList li.item .box p a { font-size: var(--font-size-base); font-weight: var(--font-weight-semi-bold); color: var(--text-black); }
+    .xans-product-relation .relation ul.prdList li.item .box ul li strong { margin-top:8px; }
+    .xans-product-relation .relation ul.prdList li.item .box ul li strong,
+    .xans-product-relation .relation ul.prdList li.item .box ul li.salePrice { color: var(--text-black); font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
+    .xans-product-relation .relation ul.prdList li.item #span_product_tax_type_text { display:none; }
+    .xans-product-relation .relation ul.prdList li.item .box ul li strong.strike,
+    .xans-product-relation .relation ul.prdList li.item:has(.salePrice:not(.displaynone)) .box ul li strong { color: var(--text-gray); font-size: var(--font-size-xs); font-weight: var(--font-weight-regular); text-decoration: line-through; }
+    .ec-base-layer .header{padding:20px;}
+    .mileage_layer td{padding-right:7px !important;}
+
+    @media (max-width:1024px) {
+        
+        .xans-product-additional .menu { max-width: unset; }
+        #image_zoom_small, #zoom_wrap{display:none !important;}
+    }
+    
+    @media (max-width:1024px) {
+        .path { width: 100%; height: 32px; margin: 10px 0 !important; opacity: 1; line-height: normal; text-indent: unset; }
+        .path li { background-position: 0 12px; line-height: 32px; }
+        .xans-product-detail .detailArea { flex-direction: column; gap: 30px; }
+        .xans-product-detail .imgArea { width: 100%; flex-direction: column; margin:0 auto;}
+        .xans-product-detail .imgArea .keyImg { width: 100%; margin: 0 0 10px; }
+        .xans-product-detail .imgArea .keyImg .thumbnail { max-height: 650px; aspect-ratio: 1; }
+        .xans-product-detail .imgArea .listImg { width: 100%; box-sizing: border-box; }
+        .xans-product-detail .imgArea .listImg ul { margin: 0; overflow-x: scroll; overflow-y: hidden; flex-direction: row; }
+        .xans-product-detail .imgArea .listImg li { width: 15vw; max-width: 60px; margin-right: 10px; aspect-ratio: 1 / 1; }
+        .xans-product-detail .imgArea .listImg li img { width: 100%; height: 100%; }
+        .xans-product-detail .infoArea { width: 100%; box-sizing: border-box; }
+        .xans-product-detail .infoArea .info_table > colgroup col:first-child { width: 100px !important; }
+        .xans-product-detail .infoArea th,
+        .xans-product-detail .infoArea .xans-product-quantity dt { width: 100px; max-width: 100px; }
+        .xans-product-detail .infoArea th,
+        .xans-product-detail .infoArea td { vertical-align: baseline; }
+        .xans-product-detail .infoArea td .ec-front-product-item-price { font-size: 15px; text-wrap: nowrap; }
+        .xans-product-detail .infoArea tr { position: relative; }
+        .xans-product-detail .infoArea tr:nth-child(n+3) th,
+        .xans-product-detail .infoArea tr:nth-child(n+3) > td { padding: 8px 0; }
+        .xans-product-detail .infoArea tr:nth-child(3) th,
+        .xans-product-detail .infoArea tr:nth-child(3) > td { padding-top: 16px; }
+        .xans-product-detail .infoArea .product_price + tr th,
+        .xans-product-detail .infoArea .product_price + tr td { padding-top: 16px; }
+        .xans-product-detail .infoArea .xans-product-option tr th { font-size: 13px; }
+        .xans-product-detail .infoArea .xans-product-option tr:last-child th,
+        .xans-product-detail .infoArea .xans-product-option tr:last-child td { padding-bottom: 16px; } 
+        .xans-product-detail .infoArea .xans-product-addoption th { width: 45%; }
+        .xans-product-detail .infoArea .xans-product-addoption td { border-top: unset !important; }
+        .xans-product-detail .infoArea .xans-product-addoption input[type="text"] { width: calc(100% - 60px); }
+        .xans-product-detail .infoArea .title_area h2 { margin-bottom: 8px; font-size: 16px; }
+        .xans-product-detail .infoArea .title_area .price_box { gap: 8px; align-items: center; }
+        .xans-product-detail .infoArea .title_area .price_box > span:first-child { font-size: 20px; }
+        .xans-product-detail .infoArea .title_area .price_box > span:last-child { font-size: 20px; }
+        .xans-product-detail .infoArea .title_area .price_box > span:last-child span { font-size: 20px !important; }
+        .xans-product-detail .infoArea .title_area .price_box .sale_price + span { font-size: 12px; }
+        .xans-product-detail .infoArea .title_area .price_box .sale_parsent { font-size: 14px !important; }
+        .xans-product-detail .infoArea .top_btn a img,
+        .xans-product-detail .infoArea .top_btn .wish img { width: 20px; height: 20px; }
+        .xans-product-detail .infoArea .no_option tr td { padding-left: 0 !important; font-size: 13px !important; }
+        .xans-product-detail .infoArea .no_option col:nth-child(1){width: auto !important;}
+        .xans-product-detail .infoArea .no_option tr td .quantity_price { font-size: 15px !important; }
+        .xans-product-detail .infoArea .xans-product-quantity dd { width: calc(100% - 110px); }
+        .xans-product-detail .infoArea .xans-product-action .btn_buy { flex-basis:auto; order:1; width:100%; }
+        .xans-product-detail .infoArea .xans-product-action .btn_wish { order:3; }
+        .xans-product-detail .infoArea .xans-product-action .btn_cart,
+        .xans-product-detail .infoArea .xans-product-action .btn_soldout { order:4; }
+        .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) { order:3; }
+        .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_cart,
+        .xans-product-detail .infoArea .xans-product-action .btn_inquiry:not(.displaynone) ~ .btn_soldout { flex-basis:auto; order:2; width:100%; }
+        .xans-product-detail .shippingFee,
+        .xans-product-detail .mileage_tooltip { position: unset; }
+        .xans-product-detail .shippingFee .ec-base-tooltip,
+        .xans-product-detail .mileage_tooltip .mileage_layer{top: unset !important; left:0 !important; width: calc(100dvw - 40px); max-width: 450px; min-width: unset; margin: 0; padding: 15px 0; transform: none; }
+        .xans-product-detail .shippingFee .ec-base-tooltip h3,
+        .xans-product-detail .mileage_tooltip .mileage_layer h3 { margin: 0 15px; }
+        .xans-product-detail .shippingFee .ec-base-tooltip .btnStrong { height: 40px; padding: 7px 15px; border:1px solid transparent; border-radius: 4px; color: var(--primary-on-text-color); background: var(--primary-color); }
+        .xans-product-detail .shippingFee .ec-base-tooltip .content,
+        .xans-product-detail .mileage_tooltip .mileage_layer .content { overflow-x: auto; padding: 0 15px; }
+        .xans-product-detail .shippingFee .ec-base-tooltip table th,
+        .xans-product-detail .mileage_tooltip .mileage_layer table th,
+        .xans-product-detail .mileage_tooltip .mileage_layer table td { padding: 10px !important; }
+        #totalProducts > table > tbody > tr > td:first-child { width: 45%; }
+        #totalProducts tbody td {width: 400px;}
+        #totalProducts tbody td.center > a { top: 5px; transform: translateY(0); }
+        #totalProducts tbody td p { font-size: 15px; font-weight: 500; }
+        #totalProducts tbody td p span { font-size: 15px !important; font-weight: 500 !important; }
+        #totalProducts .no_option tbody tr td { font-size: 15px !important; }
+        .totalPrice > strong { font-size: 15px; }
+        .totalPrice .total { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; font-size: 15px; }
+        .totalPrice .total .price,
+        .totalPrice .total strong em { font-size: 20px; font-weight: 700; color: var(--black-color); }
+        .xans-product-detail .infoArea .xans-product-addoption td:has(.txtByte) { display: table-cell; }
+        .xans-product-relation .relation { padding: 50px 0; }
+        .xans-product-relation .relation ul.prdList li.item .box p a { font-size:var(--font-size-sm); }
+        .xans-product-relation .relation ul.prdList li.item .box ul li strong.strike,
+        .xans-product-relation .relation ul.prdList li.item:has(.salePrice:not(.displaynone)) .box ul li strong { font-size: var(--font-size-2xs); }
+
+        /* 상품명 항목명,폰트 스타일 강제 적용 */
+        .xans-product-detail .detailArea .info_table > tbody > tr:first-child.xans-record- > td:nth-of-type(1) span { font-size: var(--font-size-lg) !important; }
+        
+        /* 상품정보 */
+        #wrap:has(.header_L) .xans-product-additional .menu.fixed,
+        #wrap:has(.header_R) .xans-product-additional .menu.fixed { position: fixed; }
+        #contents > .section.xans-coupon-productdetailajax { position: relative; margin-top: 20px; padding-bottom: 50px !important; }
+        .xans-coupon-productdetailajax > .title { position: unset }
+        .xans-coupon-productdetailajax > .title .button { top: unset; right: unset; bottom: 0; left: 50%; transform: translateX(-50%); }
+        .xans-coupon-productdetailajax > .title .button a { height: 36px; font-size: 13px; line-height: 36px; }
+        .xans-coupon-productdetailajax .couponSkinArea { padding: 20px 0 0; }
+        .ec-base-tab > h3 { margin-top: 50px; padding: 20px 0; font-size: 16px; }
+        .ec-base-tab.gFlex .menu { margin: 80px -20px 20px; }
+        .ec-base-tab.gFlex .menu li a { font-size: 15px; word-break: break-word; }
+        .xans-product-additional { margin-bottom: 130px; }
+        .xans-product-additional #prdDetail { padding-top: 20px; }
+        .xans-product-additional .menu { width: 100vw; transform: translateX(-20px); white-space: nowrap; overflow-x: scroll; }
+        .xans-product-additional .menu::-webkit-scrollbar { display: none; }
+        .xans-product-additional .menu li a { padding: 15px 14px; font-size: 15px; line-height: 15px; }
+        .xans-product-additional div.board { padding: 0; }
+        .xans-product-additional div.board .ec-base-button.typeBorder .gRight { width:100%; }
+        .xans-product-additional div.board .ec-base-button.typeBorder .gRight a { flex:1; }
+        .xans-product-additional .memoCont { box-sizing: border-box; padding:10px; width: 100%; }
+        .xans-product-additional .memoCont .user { gap:10px; }
+        .xans-product-additional .memoCont .user input[type=text], 
+        .xans-product-additional .memoCont .user input[type=password] { height:40px; margin:0; width:100%; }
+        .xans-product-additional .memoCont .user textarea { height:40px; }
+        .xans-product-additional .memoCont .nameArea { display:grid; grid-template-columns:100px 1fr; gap:10px; align-items: center; }
+        .xans-product-additional .memoCont .nameArea .secret,
+        .xans-product-additional .memoCont .nameArea .ec-base-help { grid-column: 1 / -1; margin:0; }
+        .xans-product-additional .boardComment li .name { font-size: 12px; }
+        .xans-product-additional .boardComment li .date { font-size: 12px; }
+        .xans-product-additional .boardComment li .comment span { font-size: 12px; }
+        .xans-product-additional #product-review-read { padding-bottom: 0; }
+        .xans-product-additional #product-review-read td { width: 100%; }
+        .xans-product-additional .cont h3 { padding: 15px 10px; font-size: var(--font-size-2xs); }
+        .xans-product-additional .ec-base-table.typeList tr { padding: 15px 0; }
+    }
+</style>
+
+<!-- ##module_info #ProductDetail #detail_B_b -->
+<!--
+    $category_page = /product/list.html
+    $project_page = /product/project.html
+    $jointbuy_page = /product/jointbuy.html
+-->
+<div role="navigation" aria-label="현재 위치" class="xans-element- xans-product xans-product-headcategory path "><span>현재 페이지</span>
+<ol>
+        <li><a href="/">HOME</a></li>
+        <li class=""><a href="/category/쌀빵/42/">쌀빵</a></li>
+        <li class=""><a href="/category/쌀치아바타/53/">쌀치아바타</a></li>
+        <li class=""><a href="/category/허브-쌀치아바타/81/">허브 쌀치아바타</a></li>
+        <li class="displaynone"><strong><a href=""></a></strong></li>
+    </ol>
+</div>
+
+<div class="xans-element- xans-product xans-product-detail detail_B_b"><!--
+        $coupon_download_page = /coupon/coupon_productdetail.html
+    -->
+<div class="headingArea ">
+        <h2>[P000000Q] 향기로운 허브 쌀치아바타</h2>
+        <span class="delivery displaynone">(해외배송 가능상품)</span>
+        <span class="icon">        <img src="//img.echosting.cafe24.com/design/skin/admin/ko_KR/ico_rental.png" alt="" class="displaynone"/>  </span>
+    </div>
+<div class="detailArea ">
+        <div class="xans-element- xans-product xans-product-image imgArea"><div class="keyImg ">
+                <div class="thumbnail">
+                    <a href="/product/image_zoom2.html?product_no=16&cate_no=81&display_group=1" alt="P000000Q" onclick="window.open(this.href, 'image_zoom2', 'toolbar=no,scrollbars=auto,resizable=yes,width=450,height=693,left=0,top=0', this);return false;">
+                        <img src="//ecimg.cafe24img.com/pg3374b03088006059/wildmental/web/product/big/20260914/f887f087df1489e5359e6afb0eb9b6a9.jpg" alt="향기로운 허브 쌀치아바타" class="BigImage "/>                    </a>
+                    <div id="zoom_wrap"></div>
+                </div>
+            </div>
+<div class="xans-element- xans-product xans-product-addimage listImg img_slide"><ul class="img_slider swiper-wrapper">
+                    <li class="swiper-slide xans-record-"><img src="//ecimg.cafe24img.com/pg3374b03088006059/wildmental/web/product/small/20260914/64fd84361f32e33b95faf274fd63c3e7.jpg"  class="ThumbImage" alt="" /></li>
+                                    </ul>
+</div>
+<div class="control ">
+                <a href="/product/image_zoom2.html?product_no=16&cate_no=81&display_group=1" class="btnZoom" onclick="window.open(this.href, 'image_zoom2', 'toolbar=no,scrollbars=auto,resizable=yes,width=560,height=710,left=0,top=0', this);return false;"><img src="//img.echosting.cafe24.com/skin/base/common/btn_icon_zoom.gif" alt=""/> 확대보기</a>
+            </div>
+<div class="color displaynone">
+                            </div>
+<div class="xans-element- xans-product xans-product-action ec-base-button gColumn "><!-- <a href="#none" class="btnNormal sizeM" onclick="recommend_mail_pop('16', '81', '1')" role="button">추천메일 보내기</a> -->
+<!-- <a href="#none" class="btnNormal sizeM displaynone" onclick="" role="button">상품조르기</a> -->
+</div>
+<div class="likeButton displaynone">
+                <button type="button"><span class="title">좋아요</span><span class="count"></span></button>
+            </div>
+</div>
+        
+        <div class="infoArea">
+            <div class="xans-element- xans-product xans-product-detaildesign"><!--
+                    count = 10
+                -->
+<div class="xans-element- xans-product xans-product-image top_btn "><span class="wish"><img src="//img.echosting.cafe24.com/design/skin/admin/ko_KR/btn_wish_before.png"  class="icon_img ec-product-listwishicon" alt="관심상품 등록 전" productno="16" categoryno="" icon_status="off" login_status="F" individual-set="F" /><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewbox="0 0 24 21.12" class="icon heart" fill="var(--black-color)" aria-hidden="true">
+    <path d="M12.03,21.12c-.2,0-.41-.08-.57-.23L1.96,11.38C.71,10.07,.02,8.38,0,6.61-.02,4.8,.68,3.13,1.97,1.9c2.66-2.54,6.9-2.53,9.45,.01l.58,.58,.5-.55c2.7-2.58,6.94-2.58,9.49-.03h0c2.62,2.62,2.68,6.77,.12,9.45l-9.52,9.52c-.16,.16-.36,.23-.57,.23ZM6.73,1.6c-1.31,0-2.63,.49-3.65,1.46-.96,.92-1.49,2.18-1.48,3.54,.01,1.36,.55,2.66,1.5,3.66l8.93,8.93,8.94-8.94c1.94-2.03,1.89-5.2-.11-7.2h0c-1.94-1.94-5.17-1.93-7.21,.01l-1.03,1.13c-.15,.16-.35,.26-.57,.26-.25,0-.43-.08-.59-.23l-1.18-1.18c-.97-.97-2.26-1.45-3.56-1.45Z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewbox="0 0 24 21.12" class="icon heart_fill" fill="var(--black-color)" aria-hidden="true">
+    <path class="cls-1" d="M22,1.92c-2.55-2.55-6.79-2.56-9.49,.03l-.5,.55-.58-.58c-2.55-2.55-6.79-2.56-9.45-.01C.68,3.13-.02,4.8,0,6.61c.02,1.77,.71,3.45,1.96,4.77l9.51,9.51c.16,.16,.36,.23,.57,.23s.41-.08,.57-.23l9.52-9.52c2.55-2.68,2.5-6.83-.12-9.45Z"></path>
+</svg></span>
+<!-- <a href="#"><img src="/SkinImg/img/ico_share.png" alt="share product"/></a> -->
+</div>
+<div class="xans-element- xans-product xans-product-image icon_box "><span class="icon">        <img src="//img.echosting.cafe24.com/design/skin/admin/ko_KR/ico_rental.png" alt="" class="displaynone"/>  </span>
+</div>
+<table class="info_table" border="1" summary="">
+                    <caption> 기본 정보</caption>
+                    <colgroup>
+                        <col style="width:120px;"/>
+                        <col style="width:auto;"/>
+                    </colgroup>
+                    <tbody>
+                        <tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:16px;color:#000000;">상품명</span></th>
+                            <td colspan="2"><span class="" style="font-size:16px;color:#000000;">향기로운 허브 쌀치아바타</span></td>
+                        </tr>
+                        <tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:12px;color:#000000;font-weight:bold;">판매가</span></th>
+                            <td><span class="" style="font-size:12px;color:#000000;font-weight:bold;"><strong id="span_product_price_text">5,200원 </strong><input id="product_price" name="product_price" value="" type="hidden"  /></span></td>
+                        </tr>
+<tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:12px;color:#333333;">국내·해외배송</span></th>
+                            <td><span class="" style="font-size:12px;color:#333333;">국내배송</span></td>
+                        </tr>
+<tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:12px;color:#333333;">배송방법</span></th>
+                            <td><span class="" style="font-size:12px;color:#333333;">택배</span></td>
+                        </tr>
+<tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:12px;color:#333333;">배송비</span></th>
+                            <td><span class="" style="font-size:12px;color:#333333;"><span class="delv_price_B"><input id="delivery_cost_prepaid" name="delivery_cost_prepaid" value="P" type="hidden"  /><strong>2,500원</strong> (50,000원 이상 구매 시 무료)</span></span></td>
+                        </tr>
+<tr class=" xans-record-">
+                            <th scope="row" class="title"><span class="" style="font-size:12px;color:#333333;">상품코드</span></th>
+                            <td><span class="" style="font-size:12px;color:#333333;">P000000Q</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+</div>
+
+            <!--- Rental service -->
+            <table border="1" summary="" class="displaynone">
+                <tbody>
+                    <tr class="rental">
+                        <th scope="row">월 렌탈 금액</th>
+                        <td>
+                            <p class="rental-maximum">월 <span class="rental-maximum-price"></span>원</p>
+<span>(<span class="rental-maximum-term"></span>개월 기준)</span>
+                            <ul class="xans-element- xans-product xans-product-rental"><li class="">
+<span class="rental-term"></span>개월 / 월 <span class="rental-price"></span>원</li>
+</ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="regularDelivery displaynone">
+                <table border="1" summary="정기결제">
+                    <caption>정기결제</caption>
+                    <tbody>
+                        <tr>
+                        <th scope="row">구매방법</th>
+                        <td>
+                            <label class="gLabel"><span class="displaynone"></span> 정기배송<span class="badge displaynone"> <i class="icoDown">할인</i></span></label>
+                            <label class="gLabel displaynone"> 1회구매</label>
+                        </td>
+                    </tr>
+                    <tr class="shippingCycle displaynone" id="">
+                        <th scope="row">배송주기</th>
+                        <td>
+                                                    </td>
+                    </tr>
+                    <tr class="shippingNum displaynone" id="">
+                        <th scope="row">정기배송 횟수</th>
+                        <td>
+                                                    </td>
+                    </tr>
+                    <tr class="shippingGuide" id="">
+                        <th scope="row"><span class="displaynone">안내사항</span></th>
+                        <td>
+                            <div class="info displaynone" id="">
+                                <p class="title"><strong>정기배송 할인</strong> <span class="icoSave">save</span></p>
+                                <ul class="xans-element- xans-product xans-product-regulardiscount"><li class="">차 이상 구매 시 :  <span class="icoDown">할인</span>
+</li>
+</ul>
+                            </div>
+                            <div class="info">
+                                <ul class="ec-base-help typeDash txt11">
+                                    <li>배송주기, 정기배송 횟수는 상품 전체에 동일하게 적용됩니다.</li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                </table>
+            </div>
+
+            <p class="displaynone"><img src="//img.echosting.cafe24.com/skin/base_en_US/product/txt_naver.gif" alt="개인결제창을 통한 결제 시 네이버 마일리지 적립 및 사용이 가능합니다."/></p>
+            
+            <table border="1" summary="" class="xans-element- xans-product xans-product-option xans-record-"><!--
+                $use_per_add_option = yes
+                -->
+<caption>상품 옵션</caption>
+<tbody>
+                                </tbody>
+<tbody>
+                <tr class="displaynone" id="">
+                    <td colspan="2" class="selectButton"><a href="#none" class="btnSubmit sizeS" onclick="" role="button">옵션선택</a></td>
+                </tr>
+                                </tbody>
+</table>
+
+            
+            <!-- 공급사 바로가기버튼 영역 -->
+            <div class="supply displaynone">
+                <span></span>
+                <a href="#none" onclick="" role="button"><img src="" alt="Visit Store"/></a>
+            </div>
+            <!-- //공급사 바로가기버튼 영역 -->
+            
+            <div class="guideArea">
+                
+                <p class="info ">(최소주문수량 1개 이상<span class="displaynone"> / 최대주문수량 0개 이하</span>)</p>
+                
+                <span class="sizeGuide displaynone"><a href="#none" class="size_guide_info" product_no="16" role="button">사이즈 가이드</a></span>
+            </div>
+
+            
+
+            
+
+            <div id="totalProducts" class="">
+                <p class="ec-base-help txtWarn txt11 "> 수량을 선택해주세요.</p>
+                <p class="ec-base-help txtWarn txt11 displaynone"> 위 옵션선택 박스를 선택하시면 아래에 상품이 추가됩니다.</p>
+                <table border="1" summary="" class="no_option">
+                    <caption>Product List</caption>
+                    <colgroup>
+                        <col style="width:auto"/>
+                        <col style="width:195px"/>
+                        <col style="width:50px;"/>
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th scope="col">작성자</th>
+                        <th scope="col">수량</th>
+                        <th scope="col">가격</th>
+                    </tr>
+                    </thead>
+                    <tbody class="">
+                    <tr>
+                        <td>향기로운 허브 쌀치아바타</td>
+                        <td>
+                                <span class="quantity">
+                                    <input id="quantity" name="quantity_opt[]" style="" value="1" type="text"  />                                    <a href="javascript:;" class="up QuantityUp" role="button"><img src="//img.echosting.cafe24.com/skin/base_ko_KR/product/btn_count_up.gif" alt="up"/></a>
+                                    <a href="javascript:;" class="down QuantityDown" role="button"><img src="//img.echosting.cafe24.com/skin/base_ko_KR/product/btn_count_down.gif" alt="down"/></a>
+                                </span>
+                        </td>
+                        <td class="right">
+<span class="quantity_price notranslate">5200</span> <span class="mileage displaynone">(<img src=""/>  <span class="mileage_price notranslate"></span>)</span>
+</td>
+                    </tr>
+                    <tr id="totalProductsOption" class="xans-element- xans-product xans-product-option option xans-record-"><!--
+                        $use_per_add_option = yes
+                        $default_option = yes
+                        -->
+<td class="middle" colspan="3">
+                            <table border="1" summary="">
+                                <caption>옵션 정보</caption>
+                                <colgroup>
+                                    <col style="width:105px;"/>
+                                    <col style="width:auto;"/>
+                                </colgroup>
+                                <tbody>
+
+                                                                                                </tbody>
+                            </table>
+                        </td>
+</tr>
+                    </tbody>
+                    <!-- 옵션선택 또는 세트상품 선택시 상품이 추가되는 영역입니다. 쇼핑몰 화면에는 아래와 같은 마크업구조로 표시됩니다. 삭제시 기능이 정상동작 하지 않습니다. -->
+                    <tbody>
+                    <!-- tr>
+                        <td>
+                            <p class="product">
+                                $상품명<br />
+                                <span>$옵션</span>
+                            </p>
+                        </td>
+                        <td>
+                            <span class="quantity">
+                                <input type="text" class="quantity_opt" />
+                                &nbsp;<a href="javascript:;" class="up eProductQuantityUpClass" role="button"><img src="//img.echosting.cafe24.com/skin/base_ko_KR/product/btn_count_up.gif" alt="수량증가" /></a>
+                                <a href="javascript:;" class="down eProductQuantityDownClass" role="button"><img src="//img.echosting.cafe24.com/skin/base_ko_KR/product/btn_count_down.gif" alt="수량감소" /></a>
+                            </span>
+                            <a href="#none" role="button"><img src="//img.echosting.cafe24.com/design/skin/default/product/btn_price_delete.gif" alt="삭제" class="option_box_del" /></a>
+                        </td>
+                        <td class="right">
+                            <span>$가격</span>
+                            <span class="mileage">(<img src="//img.echosting.cafe24.com/design/skin/admin/ko_KR/product/ico_pay_point.gif" /> &nbsp;<span class="mileage_price">$적립금</span>)</span>
+                        </td>
+                    </tr -->
+                    </tbody>
+
+                    <!-- // 옵션선택 또는 세트상품 선택시 상품이 추가되는 영역입니다. 쇼핑몰 화면에는 아래와 같은 마크업구조로 표시됩니다. 삭제시 기능이 정상동작 하지 않습니다. -->
+                </table>
+            </div>
+
+
+            <div id="totalPrice" class="totalPrice">
+                <p class="ec-base-help txtWarn txt11 displaynone"> 단독구매상품</p>
+                <strong>총 상품금액</strong>(수량) : <span class="total"><strong><em>0</em></strong> (0개)</span>
+            </div>
+            <p class="ec-base-help txt11 displaynone EC-price-warning">할인가가 적용된 최종 결제예정금액은 주문 시 확인할 수 있습니다.</p>
+
+
+            <div id="" class="xans-element- xans-product xans-product-action fixedActionButton "><div class="ec-base-button gColumn">
+                    <a href="/board/inquiry/write.html" class="btnEm sizeL btn_inquiry displaynone">대량구매문의</a>
+                    <a href="#none" onclick="add_wishlist_nologin('/member/login.html');" class="btnEm sizeL btn_wish " role="button">관심상품</a>
+                    <a href="#none" class="btnEm sizeL  btn_cart" onclick="product_submit(2, '/exec/front/order/basket/', this)" role="button">장바구니</a>
+                    <a href="#none" class="btnSubmit sizeL  btn_buy" onclick="product_submit(1, '/exec/front/order/basket/', this)" role="button">
+                        <span id="btnBuy">바로 구매</span>
+                        <span id="btnReserve" class="displaynone">예약주문</span>
+                        <span id="" class="displaynone">정기배송 신청하기</span>
+                    </a>
+                    <span class="btnEm sizeL btn_soldout disabled displaynone">품절</span>
+                </div>
+<div id="NaverChk_Button"></div>
+<div id="appPaymentButtonBox"></div>
+
+                            
+</div>
+
+            <div id="orderFixArea" class="xans-element- xans-product xans-product-action ec-base-button gFixed "><div class="ec-base-button gColumn ">
+					<button type="button" class="btnEm sizeL actionCart " onclick="product_submit(2, '/exec/front/order/basket/', this)">장바구니</button>
+                    <a href="#none" class="btnSubmit sizeL " onclick="product_submit(1, '/exec/front/order/basket/', this)" role="button"><span id="actionBuy">바로 구매</span><span class="displaynone" id="actionReserve">예약주문</span><span id="" class="displaynone">정기배송 신청하기</span></a>
+                </div>
+<div class="ec-base-button gColumn displaynone">
+                    <button type="button" class="btnNormal sizeL " onclick="add_wishlist_nologin('/member/login.html');" id="actionWishSoldout">관심상품</button>
+                    <button type="button" class="btnEm sizeL btn_soldout disabled displaynone">품절</button>
+                </div>
+</div>
+        </div>
+    </div>
+<div class="supplyInfo displaynone">
+            </div>
+<div class="eventArea displaynone ">
+        <h3><span>이벤트</span></h3>
+        <div class="event"></div>
+    </div>
+</div>
+
+
+
+<div class="xans-element- xans-product xans-product-additional"><style>
+    .boardReport { border: 1px solid #c5c5c5; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);}
+    .ec-base-layer .header { border: 1px solid #ECECEC; }
+    .boardReport > .header > h3 { font-size: 16px; font-weight: 400; line-height: 1.5;}
+    .boardReport .close { display: flex; position:absolute; top: 25px; right: 25px; width: 24px; height: 24px; padding: 0; justify-content: center; align-items: center; cursor: pointer; }
+    .boardReport .close { width: 24px; height: 24px; display: flex; position: absolute; top: 20px; right: 20px; align-items: center; }
+    .boardReport .close img { width: 13px; object-fit: contain; }
+    .boardReport .content h4,
+    .boardReport .content .summary { font-size: 13px; font-weight: 400; line-height: 1.7; }
+    .boardReport .box { border: 1px solid #ECECEC; }
+    .boardReport .box .selectBox ul li .radio { margin-right: 8px; }
+    .boardReport .ec-base-button { padding: 0 0 20px; }
+    .boardReport .ec-base-button [class^='btn'].sizeS { min-width: 110px; padding: 16px 12px !important; line-height: 1 !important; }
+    @media (max-width: 1024px) {
+        .boardReport > .header > h3 { font-size: 13px; }
+        .boardReport .box .selectBox ul li .radio { margin-right: 4px; }
+        .boardReport .ec-base-button { padding: 0 20px 20px; }
+        .boardReport .ec-base-button [class^='btn'].sizeS { height: 40px; padding: 11px 12px !important; font-size: 13px; }
+        .boardReport .ec-base-button a:first-child { margin-bottom: 10px; }
+    }
+</style>
+<div class="boardReport displaynone ec-base-layer typeModal ">
+    
+    
+    <div class="header">
+        <h3>게시글 신고하기</h3>
+    </div>
+    <div class="content">
+        <h4>신고사유</h4>
+        <div class="box">
+            <div class="selectBox">
+                <ul>
+                    <li><label class="label"><input type="radio" name="report_reason" value="1" class="radio" checked/>관련없는 내용</label></li>
+                    <li><label class="label"><input type="radio" name="report_reason" value="2" class="radio"/>욕설/비방</label></li>
+                    <li><label class="label"><input type="radio" name="report_reason" value="3" class="radio"/>개인정보유출</label></li>
+                    <li><label class="label"><input type="radio" name="report_reason" value="4" class="radio"/>광고/홍보글</label></li>
+                    <li><label class="label"><input type="radio" name="report_reason" value="5" class="radio"/>기타</label></li>
+                </ul>
+            </div>
+        </div>
+        <p class="summary">신고해주신 내용은 쇼핑몰 운영자의 검토 후 내부 운영 정책에 의해 처리가 진행됩니다.</p>
+    </div>
+
+    <div class="ec-base-button report-button">
+        <a href="#none" class="btnSubmit ecReportAction sizeS" onclick="" role="button">신고</a>
+        <a href="#none" class="btnNormal ecReportCloseLayer sizeS" onclick="" role="button">취소</a>
+    </div>
+    <a href="#none" class="close ecReportCloseLayer" onclick="" role="button"><img src="/SkinImg/img/ico_close.png" alt="닫기"/></a>
+</div>
+<ul class="menu">
+        <li class="selected"><a href="#l" data-name="#prdDetail">상세정보</a></li>
+        <li class=""><a href="#" data-name="#prdReview">상품 리뷰<span>(0)</span></a></li>
+        <li class=""><a href="#" data-name="#prdQnA">상품 문의 (0)</a></li>
+        <li><a href="#" data-name="#prdInfo">배송 및 반품 정보</a></li>
+        <!-- <li><a href="#prdRelated">관련 상품</a></li> -->
+    </ul>
+<div id="prdDetail" class="ec-base-tab gFlex">
+        <div class="cont">
+            <!-- <h3>product detail</h3> -->
+            <style>
+  .aisg-banner {
+      box-sizing: border-box; margin: 0 auto; padding: 40px; background: #FFFDDF; border: 1px solid #EBEBEB;
+  }
+  .aisg-banner__container {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .aisg-banner__icon-group {
+      display: flex; align-items: center;
+  }
+  .aisg-banner__content {
+      text-align: center;
+  }
+  .aisg-banner__subtitle {
+      display: block; font-family: 'Noto Sans KR', sans-serif; font-size: 16px; line-height: 24px; color: #757575; margin-bottom: 4px;
+  }
+  .aisg-banner__title {
+      display: block; font-family: 'Noto Sans KR', sans-serif; font-weight: 700; font-size: 24px; line-height: 34px; color: #1C1C1C; letter-spacing: -0.5px;
+  }
+
+  @media screen and (max-width: 1024px) {
+      .aisg-banner {
+          padding: 20px 24px;
+          margin-top: 20px;
+      }
+      .aisg-banner__subtitle {
+          font-size: 13px; font-weight: 500; line-height: 20px;
+      }
+      .aisg-banner__title {
+          font-size: 14px; line-height: 20px;
+      }
+  }
+</style>
+<div class="aisg-banner">
+  <div class="aisg-banner__container">
+    <div class="aisg-banner__icon">
+      <img
+        src="https://cafe24img.poxo.com/file.cafe24cos.com/aisg/resources/images/icon_product_banner.svg"
+        alt=""
+      />
+    </div>
+    <div class="aisg-banner__content">
+      <span class="aisg-banner__subtitle">Sample Product Generated by AI</span>
+      <strong class="aisg-banner__title">본 상품은 AI로 생성된 샘플 상품으로, 실제 판매되는 상품이 아닙니다.</strong>
+    </div>
+  </div>
+</div>        </div>
+    </div>
+<div id="prdReview" class="ec-base-tab gFlex  ">
+        <!-- <ul class="menu">
+            <li><a href="#prdDetail">상세정보</a></li>
+            <li class=" selected">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li class="">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li><a href="#prdInfo">배송 및 반품 정보</a></li>
+            <li><a href="#prdRelated">관련 상품</a></li>
+        </ul> -->
+        <h3>상품 리뷰 (0)</h3>
+
+        <div class="board">
+            <p class="nodata">게시물이 없습니다</p>
+            <p class="ec-base-button typeBorder">
+                <span class="gRight">
+                    <a href="/board/product/write.html?board_no=4&product_no=16&cate_no=81&display_group=1" class="btnEm sizeS">상품후기쓰기</a>
+                    <a href="/board/product/list.html?board_no=4&link_product_no=16" class="btnSubmit sizeS">모두 보기</a>
+                </span>
+            </p>
+
+                    </div>
+    </div>
+<div id="prdQnA" class="ec-base-tab gFlex  ">
+        <!-- <ul class="menu">
+            <li><a href="#prdDetail">상세정보</a></li>
+            <li class="">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li class=" selected">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li><a href="#prdInfo">배송 및 반품 정보</a></li>
+            <li><a href="#prdRelated">관련 상품</a></li>
+        </ul> -->
+
+        <h3>상품 문의 (0)</h3>
+
+        <div class="board">
+            <p class="nodata">게시물이 없습니다</p>
+            <p class="ec-base-button typeBorder">
+                <span class="gRight">
+                    <a href="/board/product/write.html?board_no=6&product_no=16&cate_no=81&display_group=1" class="btnEm sizeS">문의하기</a>
+                    <a href="/board/product/list.html?board_no=6&link_product_no=16" class="btnSubmit sizeS">목록</a>
+                </span>
+            </p>
+
+                    </div>
+    </div>
+<div id="prdInfo" class="ec-base-tab gFlex ">
+        <!-- <ul class="menu">
+            <li><a href="#prdDetail">상세정보</a></li>
+            <li class="">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li class="">><a href="#prdReview">상품 리뷰<span>(0)</span></a></li>
+            <li class="selected"><a href="#prdInfo">배송 및 반품 정보</a></li>
+            <li><a href="#prdRelated">관련 상품</a></li>
+        </ul> -->
+        <h3>배송 및 반품 정보</h3>
+        <div class="cont">
+            <h3>상품결제정보</h3>
+            <div class="info_box">고액결제의 경우 안전을 위해 카드사에서 확인전화를 드릴 수도 있습니다. 확인과정에서 도난 카드의 사용이나 타인 명의의 주문등
+      정상적인 주문이 아니라고 판단될 경우 임의로 주문을 보류 또는 취소할 수 있습니다. &nbsp; <br>
+      <br>
+      무통장 입금은 상품 구매 대금은 PC뱅킹, 인터넷뱅킹, 텔레뱅킹 혹은 가까운 은행에서 직접 입금하시면 됩니다. &nbsp;<br>
+      주문시 입력한&nbsp;입금자명과 실제입금자의 성명이 반드시 일치하여야 하며, 7일 이내로 입금을 하셔야 하며&nbsp;입금되지
+      않은 주문은 자동취소 됩니다. <br>
+</div>
+        </div>
+        <div class="cont">
+            <h3>배송정보</h3>
+            <div class="info_box">
+                <ul class="delivery">
+                    <li>배송 방법 : 택배</li>
+                    <li>배송 지역 : 전국지역</li>
+                    <li>배송 비용 : 2,500원</li>
+                    <li>배송 기간 : 3일 ~ 7일</li>
+                    <li>배송 안내 : - 산간벽지나 도서지방은 별도의 추가금액을 지불하셔야 하는 경우가 있습니다.<br>
+    고객님께서 주문하신 상품은 입금 확인후 배송해 드립니다. 다만, 상품종류에 따라서 상품의 배송이 다소 지연될 수 있습니다.<br>
+</li>
+                </ul>
+            </div>
+        </div>
+        <div class="cont">
+            <h3>교환 및 반품정보</h3>
+            <div class="info_box"><strong>교환 및 반품 주소</strong>
+<br>&nbsp;- 
+<br>&nbsp;
+<br><strong>교환 및 반품이 가능한 경우</strong>
+<br>&nbsp;-&nbsp;계약내용에 관한 서면을 받은 날부터&nbsp;7일.&nbsp;단,&nbsp;그 서면을 받은 때보다 재화등의 공급이 늦게 이루어진 경우에는 재화등을 공급받거나 재화등의 공급이 시작된 날부터&nbsp;7일 이내
+<br>&nbsp; -&nbsp;공급받으신 상품 및 용역의 내용이 표시.광고 내용과 다르거나 계약내용과 다르게 이행된 때에는 당해 재화 등을 공급받은 날 부터&nbsp;3월이내,&nbsp;그사실을 알게 된 날 또는 알 수 있었던 날부터&nbsp;30일이내
+<br>&nbsp;
+<br><strong>교환 및 반품이 불가능한 경우</strong>
+<br>&nbsp;-&nbsp;이용자에게 책임 있는 사유로 재화 등이 멸실 또는 훼손된 경우(다만,&nbsp;재화 등의 내용을 확인하기 위하여 포장 등을 훼손한 경우에는 청약철회를 할 수 있습니다)
+<br>&nbsp; -&nbsp;이용자의 사용 또는 일부 소비에 의하여 재화 등의 가치가 현저히 감소한 경우
+<br>&nbsp; -&nbsp;시간의 경과에 의하여 재판매가 곤란할 정도로 재화등의 가치가 현저히 감소한 경우
+<br>&nbsp; -&nbsp;복제가 가능한 재화등의 포장을 훼손한 경우
+<br>&nbsp; -&nbsp;개별 주문 생산되는 재화 등 청약철회시 판매자에게 회복할 수 없는 피해가 예상되어 소비자의 사전 동의를 얻은 경우
+<br>&nbsp; -&nbsp;디지털 콘텐츠의 제공이 개시된 경우, (다만,&nbsp;가분적 용역 또는 가분적 디지털콘텐츠로 구성된 계약의 경우 제공이 개시되지 아니한 부분은 청약철회를 할 수 있습니다.)
+<br>&nbsp;
+<br>※ 고객님의 마음이 바뀌어 교환,&nbsp;반품을 하실 경우 상품반송 비용은 고객님께서 부담하셔야 합니다.
+<br>&nbsp;(색상 교환,&nbsp;사이즈 교환 등 포함)
+<br>
+</div>
+        </div>
+        <div class="cont">
+            <h3>서비스문의</h3>
+            <div class="info_box"></div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 옵션 없을때 텍스트 수정
+        setTimeout(function () {
+            const target = document.querySelector('.xans-product-detail .infoArea .no_option tr:first-child td:first-child');
+            if (target && target.textContent.trim() === 'no option prod') {
+                target.textContent = 'Quantity';
+            }
+            target.style.opacity = '1'; 
+        }, 300);
+
+        // 해당 위치 active
+        const items = document.querySelectorAll('.path li');
+        let lastVisible = null;
+
+        items.forEach(function (item) {
+            if (!item.classList.contains('displaynone')) {
+                lastVisible = item;
+            }
+        });
+
+        if (lastVisible) {
+            lastVisible.classList.add('active');
+        }
+
+        // 위시리스트 아이콘 변경
+        const btnWish = document.querySelectorAll('.top_btn .wish');
+        btnWish.forEach(function(button){
+            const img = button.querySelector('img');
+            if (img) {
+                button.style.display = 'flex';
+                /* setTimeout(function(){
+                    const status = img.getAttribute('icon_status');
+                    if (status === 'on') {
+                        button.classList.add('active');
+                    } else if (status === 'off') {
+                        button.classList.remove('active');
+                    }
+                },300) */
+            }
+        });
+
+        /* function imgClick(button) {
+            const img = button.querySelector('img');
+            if (img) {
+                img.click();
+                setTimeout(function(){
+                    const status = img.getAttribute('icon_status');
+                    if (status === 'on') {
+                        button.classList.add('active');
+                    } else if (status === 'off') {
+                        button.classList.remove('active');
+                    }
+                },300)
+            }
+        }
+
+        function attachClickEvent(buttons) {
+            buttons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    imgClick(button);
+                });
+            });
+        } */
+
+        /* attachClickEvent(btnWish); */
+
+        // qr코드 영역에 클래스명 추가
+        document.querySelectorAll('.xans-product-detail .infoArea th span').forEach(function(span) {
+            if (span.textContent.trim() === 'QR Code') {
+                const tr = span.closest('tr');
+                if (tr) { 
+                    tr.classList.add('qr_box');
+                }
+            }
+        });
+
+
+        // 추가입력옵션 title 수정
+        const addOption = document.querySelectorAll('.xans-product-detail .infoArea .xans-product-addoption')
+        if(addOption){
+            addOption.forEach(function(el) {
+                let html = el.innerHTML;
+                html = html.replace(/([^>])(\[Required\])/g, function(match, p1, p2) {
+                    return p1 + ' ' + p2;
+                });
+                html = html.replace(/([^>])(\[Select\])/g, function(match, p1, p2) {
+                    return p1 + ' ' + p2;
+                });
+                el.innerHTML = html;
+            });
+        };
+
+        // 메뉴 tab에 fixed 추가
+        const menu = document.querySelector('.xans-product-additional .menu');
+        if (!menu) return;
+
+        const menuItems = menu.querySelectorAll('li');
+        const sectionIds = ['#prdDetail', '#prdReview', '#prdQnA', '#prdInfo'];
+        const sections = sectionIds.map(id => document.querySelector(id));
+        const header = document.getElementById('header');
+        const additional = document.querySelector('.xans-product-additional');
+
+        // 메뉴 클릭 시 selected 처리
+        menuItems.forEach(function (item, index) {
+            const link = item.querySelector('a[href^="#"]');
+            if (!link) return;
+
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const href = link.getAttribute('data-name');
+                const target = document.querySelector(href);
+                const menuHeight = menu.offsetHeight;
+
+                if (target) {
+                    const targetTop = target.offsetTop;
+                    const scrollTarget = targetTop - menuHeight + 5;
+
+                    window.scrollTo({
+                        top: scrollTarget,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        function updateMenuWidth() {
+            if (window.innerWidth > 1024) {
+                const additional = document.querySelector('.xans-product-additional');
+            
+                if (additional) {
+                    const additionalWidth = additional.offsetWidth;
+                    menu.style.width = `${additionalWidth}px`;
+                }
+            } else {
+                menu.style.width = ''; // 원래 스타일로 복구
+            }
+        }
+
+        window.addEventListener('scroll', function () {
+            const scrollY = window.scrollY || window.pageYOffset;
+            const menuHeight = menu.offsetHeight;
+            const isFixed = menu.classList.contains('fixed');
+            const maxScrollTop = document.documentElement.scrollHeight - window.innerHeight;
+
+            if (scrollY >= maxScrollTop) {
+                menuItems.forEach(el => el.classList.remove('selected'));
+                if (menuItems[menuItems.length - 1]) {
+                    menuItems[menuItems.length - 1].classList.add('selected');
+                }
+                return;
+            };
+
+            if (scrollY >= additional.offsetTop - menuHeight) {
+                if (!isFixed) {
+                    menu.classList.add('fixed');
+
+                    // 모바일 또는 header_L/header_R 없을 때 header 숨김
+                    if ((window.innerWidth <= 1024) ||
+                        (!document.querySelector('.header_L') && !document.querySelector('.header_R'))) {
+                        if (header) header.classList.add('hidden');
+                    }
+                }
+            } else {
+                if (isFixed) {
+                    menu.classList.remove('fixed');
+                    if (header) header.classList.remove('hidden');
+                    menuItems.forEach(el => el.classList.remove('selected'));
+                    if (menuItems[0]) menuItems[0].classList.add('selected');
+                }
+            }
+
+            // 현재 위치에 따라 메뉴 active 처리
+            sections.forEach((section, index) => {
+                if (!section) return;
+
+                const sectionTop = section.offsetTop;
+                const sectionBottom = sectionTop + section.offsetHeight;
+                const adjustedScrollY = scrollY + menuHeight;
+
+                if (adjustedScrollY >= sectionTop && scrollY < sectionBottom) {
+                    
+                    menuItems.forEach(el => el.classList.remove('selected'));
+                    if (menuItems[index]) {
+                        menuItems[index].classList.add('selected');
+                    }
+                }
+            });
+        });
+
+        // 추가구성상품 클릭이벤트
+        document.querySelectorAll('.xans-product-detail .productSet.additional .toggle').forEach(function(toggle) {
+            toggle.addEventListener('click', function () {
+                const productSet = toggle.closest('.productSet');
+
+                if (productSet.classList.contains('active')) {
+                    productSet.classList.remove('active');
+                } else {
+                    productSet.classList.add('active');
+                }
+            });
+        });
+
+        // 상품정보 slide 이벤트
+        const contList = document.querySelectorAll('.xans-product-additional .cont');
+        contList.forEach(function (cont) {
+            const h3 = cont.querySelector('h3');
+            const infoBox = cont.querySelector('.info_box');
+
+            if (!h3 || !infoBox) return;
+
+            infoBox.style.maxHeight = '0';
+            infoBox.style.overflow = 'hidden';
+
+            h3.addEventListener('click', function () {
+                contList.forEach(function (e) {
+                    const otherH3 = e.querySelector('h3');
+                    if (otherH3 && otherH3 !== h3) {
+                        otherH3.classList.remove('active');
+                    }
+                });
+                
+                h3.classList.toggle('active');
+                const isOpen = infoBox.style.maxHeight && infoBox.style.maxHeight !== '0px';
+
+                contList.forEach(function (e) {
+                    const box = e.querySelector('.info_box');
+                    if (box) box.style.maxHeight = '0', box.style.padding = '0 10px';
+                });
+
+                if (!isOpen) {
+                    infoBox.style.maxHeight = infoBox.scrollHeight + 'px', infoBox.style.padding = '20px 10px';
+                }
+            });
+        });
+
+        const zoomLink = document.querySelector('.xans-product-detail .imgArea .keyImg a');
+        if (zoomLink) {
+            zoomLink.addEventListener('click', function (e) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            }, true);
+        }
+    });
+</script>
+<script>
+    // 상품 추가 이미지 슬라이드
+    const addimage_slide = new Swiper('.xans-product-detail .imgArea .img_slide', {
+        slidesPerView: 'auto',
+        spaceBetween: 10,
+        loop: false,
+        observer: true,
+        observeParents: true,
+    });
+
+    // 추천상품 슬라이드
+    const relation_slide = new Swiper('.relation_slide', {
+        spaceBetween: 10,
+        speed: 800,
+        loop: false,
+        observer: true,
+        observeParents: true,
+        autoplay: {
+            delay: 5000,
+            disableOnInteraction: false,
+        },
+        breakpoints:{
+            0: {
+                slidesPerView: 2,
+            },
+            1024: {
+                slidesPerView: 5,
+            }
+        }
+    });
+</script>
+            </div>
+        </div>
+    </div>
+
+    <!-- footer 영역 -->
+    
+    
+    
+    <!-- ##module_info #Layout #footer #footer_E -->
+<div class="footer_E" id="footer">
+<div class="inner">
+<div class="xans-element- xans-layout xans-layout-footer "><span class="xans-element- xans-layout xans-layout-logobottom "><!-- <a href="/"><img src="/SkinImg/img/logo_bk.png" alt="logo"/></a> -->
+<a class="notranslate" href="/">wild-bread</a>
+</span>
+<div class="xans-element- xans-layout xans-layout-info bt_cscenter "><ul class="utilMenu">
+<li><a href="/shopinfo/company.html">COMPANY</a></li>
+<li><a href="/member/mall_agreement.html">AGREEMENT</a></li>
+<li><a href="/member/privacy.html">PRIVACY POLICY</a></li>
+<li><a href="/shopinfo/guide.html">GUIDE</a></li>
+</ul>
+<div class="cs_info">
+<div class="title">CS CENTER</div>
+<div class="list">
+<div class="phone bt_txt01">Tel. <span>010-2308-2600</span>
+</div>
+<div class="runtime bt_txt02"><span></span></div>
+</div>
+</div>
+<div class="bank_info">
+<div class="title">BANK INFO</div>
+<span class="account_number">
+                        은행 0000-000-00000
+                    </span>
+<span class="account_name">
+                        예금주
+                    </span>
+</div>
+</div>
+</div>
+<div class="locale_pg_sns_wrap">
+<div class="lps_left">
+<ul class="sns_info">
+<li><a href="#" title="Instagram"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+    <path d="M9.00488 0C11.4495 0 11.756 0.0109352 12.7197 0.0566406C13.6765 0.0988338 14.3309 0.253104 14.9043 0.474609C15.4952 0.703159 15.9986 1.01245 16.498 1.51172C17.0011 2.01104 17.3067 2.51453 17.5283 3.1123C17.7499 3.6819 17.9051 4.33957 17.9473 5.2959C17.9895 6.25557 18 6.5617 18 9.00488C18 11.4485 17.9895 11.7551 17.9473 12.7148C17.9051 13.6712 17.7499 14.3253 17.5283 14.8984C17.2997 15.489 16.9905 15.992 16.4912 16.4912C15.9917 16.9905 15.4884 17.3007 14.8975 17.5293C14.3276 17.7508 13.6697 17.9051 12.7129 17.9473C11.7526 17.9895 11.4465 18 9.00195 18C6.55753 18 6.25101 17.9894 5.29102 17.9473C4.33443 17.9051 3.67973 17.7507 3.10645 17.5293C2.51548 17.3007 2.01221 16.9905 1.5127 16.4912C1.00987 15.992 0.703804 15.4895 0.47168 14.8955C0.250092 14.3259 0.0949682 13.6682 0.0527344 12.7119C0.010523 11.752 3.49361e-07 11.4457 0 9.00195C0 6.55851 0.01054 6.25216 0.0527344 5.28906C0.0949465 4.33262 0.250066 3.67766 0.47168 3.10449C0.703823 2.51396 1.0098 2.0109 1.5127 1.51172C2.01212 1.00902 2.51499 0.702748 3.10938 0.470703C3.67921 0.249186 4.33722 0.0949405 5.29395 0.0527344C6.25422 0.0105404 6.56044 1.06241e-06 9.00488 0ZM9.00488 1.62109C6.59929 1.62109 6.31422 1.63164 5.36816 1.67383C4.49236 1.7125 4.01386 1.86033 3.69727 1.9834C3.27866 2.14515 2.97968 2.3388 2.66309 2.65527C2.35013 2.96813 2.15299 3.27019 1.99121 3.68848C1.86809 4.00495 1.72034 4.48029 1.68164 5.35938C1.63945 6.3049 1.62891 6.59033 1.62891 8.99512C1.62891 11.3965 1.63943 11.6815 1.68164 12.6309C1.72034 13.5062 1.86811 13.9843 1.99121 14.3008C2.15302 14.7192 2.3465 15.0185 2.66309 15.335C2.97609 15.6478 3.27875 15.8451 3.69727 16.0068C4.01386 16.1299 4.48904 16.2768 5.36816 16.3154C6.31423 16.3576 6.59928 16.3682 9.00488 16.3682C11.4075 16.3682 11.6928 16.3576 12.6426 16.3154C13.5183 16.2768 13.9969 16.1299 14.3135 16.0068C14.732 15.8451 15.0311 15.6514 15.3477 15.335C15.6607 15.022 15.8577 14.7192 16.0195 14.3008C16.1426 13.9843 16.2904 13.5097 16.3291 12.6309C16.3713 11.685 16.3818 11.4 16.3818 8.99512C16.3818 6.59386 16.3713 6.30841 16.3291 5.35938C16.2904 4.48381 16.1427 4.00495 16.0195 3.68848C15.8578 3.27021 15.6641 2.97162 15.3477 2.65527C15.0346 2.34235 14.732 2.14514 14.3135 1.9834C13.9969 1.86033 13.522 1.71251 12.6426 1.67383C11.6963 1.63163 11.411 1.62109 9.00488 1.62109ZM9.00488 4.37695C11.5586 4.37708 13.6309 6.44819 13.6309 9.00098C13.6308 11.5537 11.5586 13.6249 9.00488 13.625C6.45106 13.625 4.37893 11.5538 4.37891 9.00098C4.37891 6.44811 6.45105 4.37695 9.00488 4.37695ZM9.00488 6.00195C7.34806 6.00195 6.00391 7.34478 6.00391 9.00098C6.00393 10.6572 7.34807 12 9.00488 12C10.6616 11.9999 12.0049 10.6571 12.0049 9.00098C12.0049 7.34486 10.6616 6.00208 9.00488 6.00195ZM13.8135 3.11523C14.4076 3.11523 14.8933 3.60026 14.8936 4.19434C14.8936 4.79211 14.4077 5.27441 13.8135 5.27441C13.2159 5.27419 12.7344 4.78846 12.7344 4.19434C12.7346 3.59689 13.2195 3.11546 13.8135 3.11523Z"></path>
+</svg>
+</a></li>
+<li><a href="#" title="Facebook"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+  <path d="M18 9.055C18 4.05406 13.9706 0 9 0C4.02943 0 0 4.05406 0 9.055C0 13.5745 3.29115 17.3207 7.59375 18V11.6725H5.30859V9.055H7.59375V7.06007C7.59375 4.79066 8.93742 3.53711 10.9932 3.53711C11.9776 3.53711 13.0078 3.71397 13.0078 3.71397V5.94234H11.873C10.755 5.94234 10.4062 6.64039 10.4062 7.35719V9.055H12.9023L12.5033 11.6725H10.4062V18C14.7088 17.3207 18 13.5745 18 9.055Z"></path>
+</svg></a></li>
+<li><a href="#" title="Youtube"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+  <path d="M9.00293 2.5C9.00293 2.5 14.6297 2.49986 16.0371 2.88086C16.812 3.08727 17.4225 3.70025 17.6289 4.48145C18.0023 5.8894 18 8.82007 18 8.8418C18 8.8418 17.9997 11.789 17.625 13.2021C17.4186 13.9802 16.809 14.5931 16.0342 14.8027C14.6307 15.1806 9.00229 15.1807 9 15.1807C9 15.1807 3.36956 15.1806 1.96582 14.8027C1.19095 14.5963 0.58143 13.9834 0.375 13.2021C0.000264659 11.789 0 8.8418 0 8.8418C5.18279e-06 8.82007 0.00142955 5.88965 0.37793 4.47852C0.584335 3.70053 1.19396 3.08758 1.96875 2.87793C3.36706 2.50146 8.96026 2.50001 9.00293 2.5ZM7.16016 11.5186L11.8662 8.84082L7.16016 6.16406V11.5186Z"></path>
+</svg></a></li>
+<li><a href="#" title="Kakaotalk"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path d="M9.04537 2C4.60654 2 1 4.90625 1 8.46875C1 10.7188 2.47961 12.6875 4.60654 13.9062L4.05169 17L7.47328 14.75C7.93566 14.8438 8.49052 14.8438 8.95289 14.8438C13.3917 14.8438 16.9983 11.9375 16.9983 8.375C17.0907 4.90625 13.4842 2 9.04537 2Z"></path>
+</svg>
+</a></li>
+<li><a href="#" title="Twitter"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path d="M13.0258 2H15.1726L10.4825 7.93026L16 16H11.6799L8.2962 11.1057L4.42451 16H2.27646L7.29291 9.65692L2 2H6.4298L9.48834 6.47354L13.0258 2ZM12.2724 14.5785H13.4619L5.78343 3.34687H4.50693L12.2724 14.5785Z"></path>
+</svg>
+</a></li>
+<li class="displaynone"><a href="#" title="Naver blog"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path d="M6.58279 5.59168C5.44258 5.59168 4.38592 5.94416 3.51831 6.54448V2.12288H1V15.8557H3.51831V15.1738C4.38592 15.7739 5.44258 16.1266 6.58279 16.1266C9.53304 16.1266 11.9246 13.7683 11.9246 10.8592C11.9246 7.95008 9.53288 5.59168 6.58279 5.59168ZM6.34297 13.8259C4.73446 13.8259 3.43052 12.4966 3.43052 10.857C3.43052 9.21728 4.73446 7.888 6.34297 7.888C7.95147 7.888 9.25541 9.21728 9.25541 10.857C9.25541 12.4966 7.95147 13.8259 6.34297 13.8259ZM14.9927 1H16V17H14.9927V1Z"></path>
+</svg>
+</a></li>
+<li class="displaynone"><a href="#" title="Tiktok"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path d="M15.9928 5.00271V7.6157C15.9928 7.6157 13.7426 7.73875 11.9612 6.24768V12.2337C11.9612 12.4653 11.9396 12.6897 11.8963 12.9213C11.6799 13.9853 10.7784 16.6779 7.23003 16.9891C7.04972 17.0036 6.86942 17.0036 6.68912 16.9891C5.67942 16.9023 2.65753 16.3377 2.05892 12.6897C1.9868 12.2698 1.97958 11.8428 2.04449 11.423C2.2248 10.178 3.50856 6.75435 7.72767 7.16693V9.76544C7.72767 9.76544 5.91742 9.33115 5.03754 10.7354C4.57596 11.4736 4.52547 12.4001 4.91493 13.1746C5.21063 13.7682 5.80924 14.3762 6.9776 14.4196C7.46803 14.4196 9.02585 14.2459 9.37204 12.3133V1H11.9612C11.9612 1 11.9612 4.74938 16 5.00271H15.9928Z"></path>
+</svg>
+</a></li>
+<li class="displaynone"><a href="#" title="Thread"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path fill-rule="evenodd" clip-rule="evenodd" d="M8.15234 0.0632501C4.4782 0.49617 2.30287 3.15466 2.03026 7.54525C1.6248 14.0746 5.33186 17.9596 10.8559 16.7946C15.6244 15.7889 17.0464 10.0113 13.0352 7.94037C12.8174 7.82793 12.7267 7.75463 12.7134 7.6805C12.7032 7.6237 12.6728 7.39722 12.6457 7.17717C12.2618 4.06129 8.69602 2.81395 6.57866 5.05488C6.083 5.5795 6.06408 5.47663 6.74448 5.95655C7.31536 6.35925 7.31536 6.35925 7.56904 6.09451C8.75254 4.85939 10.8448 5.39767 11.1938 7.02707C11.2602 7.33675 11.2827 7.32042 10.8595 7.26887C10.2415 7.19359 8.71671 7.25117 8.3064 7.36526C4.68029 8.37389 5.51798 13.0889 9.29362 12.9218C11.0559 12.8439 12.1915 11.7693 12.5781 9.81387C12.6717 9.3408 12.7381 9.34807 13.2408 9.88639C15.0706 11.8456 13.2953 15.0053 10.1343 15.4156C5.47889 16.0198 2.89669 12.7501 3.49011 7.00242C3.8567 3.45202 5.85617 1.51073 9.14276 1.51441C11.8726 1.51744 13.8543 2.90946 14.5369 5.3034C14.6679 5.7628 14.6224 5.74864 15.335 5.5515C16.1134 5.33614 16.0645 5.39408 15.9008 4.88124C14.8109 1.46727 11.8519 -0.372658 8.15234 0.0632501ZM10.5954 8.74974C11.3448 8.83495 11.2938 8.80579 11.2613 9.13092C11.0566 11.177 9.11437 12.2227 7.78456 11.003C6.4617 9.78954 8.11122 8.46724 10.5954 8.74974Z"></path>
+</svg>
+</a></li>
+<li class="displaynone"><a href="#" title="Pinterest"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+	<path d="M14.3127 1.84456C13.0737 0.655106 11.359 0 9.48452 0C6.62123 0 4.86016 1.1737 3.88703 2.15826C2.6877 3.37162 2 4.98273 2 6.57856C2 8.58223 2.8381 10.1201 4.24158 10.6923C4.3358 10.7309 4.43062 10.7503 4.52357 10.7503C4.81966 10.7503 5.05426 10.5566 5.13555 10.2458C5.18294 10.0675 5.2927 9.62768 5.34044 9.43675C5.4426 9.05969 5.36005 8.87832 5.13723 8.61574C4.73131 8.13543 4.54228 7.56747 4.54228 6.82831C4.54228 4.63275 6.17713 2.29934 9.20717 2.29934C11.6114 2.29934 13.1048 3.6658 13.1048 5.86541C13.1048 7.25346 12.8059 8.53892 12.2628 9.48516C11.8854 10.1427 11.2219 10.9264 10.2032 10.9264C9.76264 10.9264 9.36692 10.7454 9.11724 10.43C8.88137 10.1317 8.80361 9.74648 8.89849 9.34495C9.00565 8.89129 9.1518 8.41809 9.29323 7.96063C9.55118 7.1251 9.79502 6.33594 9.79502 5.70632C9.79502 4.62941 9.13295 3.90578 8.14769 3.90578C6.89555 3.90578 5.91458 5.17753 5.91458 6.80106C5.91458 7.59729 6.12619 8.19284 6.22199 8.4215C6.06424 9.08982 5.12676 13.0632 4.94893 13.8125C4.8461 14.2498 4.22671 17.7045 5.25191 17.9799C6.40378 18.2894 7.43341 14.9249 7.53822 14.5447C7.62315 14.2355 7.92033 13.0663 8.10244 12.3476C8.65851 12.8832 9.55385 13.2453 10.425 13.2453C12.0674 13.2453 13.5444 12.5062 14.584 11.1644C15.5922 9.86291 16.1475 8.04891 16.1475 6.0568C16.1475 4.49944 15.4786 2.96408 14.3127 1.84456Z"></path>
+</svg>
+</a></li>
+</ul>
+<p class="bt_locale displaynone">
+<a class="btnLocaleSetting notranslate" href="javascript:void(0)" role="button"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 18 18" class="icon" fill="var(--black-color)" aria-hidden="true">
+  <path d="M9.35156 1.00879C13.4156 1.18455 16.6903 4.39135 16.9766 8.42578C16.99 8.51335 17 8.60128 17 8.69043L16.9941 8.78711C16.996 8.85787 17 8.92879 17 9C17 13.3004 13.6067 16.8062 9.35156 16.9902C9.29807 16.9952 9.24449 17 9.19043 17L9.12988 16.9961C9.08666 16.9968 9.04339 17 9 17C4.58172 17 1 13.4183 1 9C1 8.9288 1.00303 8.85787 1.00488 8.78711L1 8.69043C1 8.60133 1.009 8.5133 1.02246 8.42578C1.31689 4.27559 4.77485 1 9 1C9.04339 1 9.08666 1.00224 9.12988 1.00293C9.15005 1.00223 9.17019 1 9.19043 1L9.35156 1.00879ZM11.1299 12.2461C10.4517 12.3323 9.73761 12.3799 9 12.3799C8.40264 12.3799 7.82072 12.3483 7.26074 12.291C7.41841 12.9658 7.61994 13.566 7.85254 14.0703C8.43628 15.3359 8.97983 15.5711 9.16113 15.5947C9.18428 15.5942 9.20738 15.5936 9.23047 15.5928C9.42226 15.5609 9.95625 15.3106 10.5283 14.0703C10.766 13.5549 10.9708 12.9391 11.1299 12.2461ZM2.69629 10.9619C3.32316 12.9785 4.89229 14.5781 6.8877 15.252C6.40513 14.4157 6.02175 13.3222 5.78125 12.0674C4.56413 11.8203 3.50558 11.439 2.69629 10.9619ZM15.3027 10.9619C14.5823 11.3865 13.6646 11.7355 12.6133 11.9814C12.3905 13.1832 12.0368 14.2399 11.5908 15.0703C13.3568 14.3157 14.7268 12.8143 15.3027 10.9619ZM9 6.40039C8.33559 6.40039 7.69878 6.4417 7.09961 6.51562C6.97261 7.27883 6.90039 8.115 6.90039 9C6.90039 9.6467 6.93857 10.2674 7.00879 10.8525C7.63434 10.9338 8.30188 10.9805 9 10.9805C9.84373 10.9805 10.6428 10.913 11.377 10.7969C11.443 10.228 11.4805 9.62629 11.4805 9C11.4805 8.13533 11.4107 7.31735 11.2891 6.56836C10.5793 6.46076 9.8101 6.40039 9 6.40039ZM5.64551 6.77539C4.99653 6.93082 4.41811 7.12725 3.92969 7.35254C2.76208 7.89111 2.469 8.39514 2.41211 8.6123C2.40972 8.65355 2.40788 8.69489 2.40625 8.73633C2.44204 8.9327 2.70119 9.46168 3.92969 10.0283C4.39966 10.2451 4.95294 10.4353 5.57227 10.5879C5.5246 10.0747 5.5 9.54366 5.5 9C5.5 8.228 5.55137 7.48167 5.64551 6.77539ZM12.7471 6.87598C12.8328 7.55241 12.8799 8.26453 12.8799 9C12.8799 9.50726 12.8561 10.0033 12.8145 10.4844C13.2789 10.352 13.7005 10.1989 14.0703 10.0283C15.2984 9.46184 15.5569 8.93283 15.5928 8.73633C15.5911 8.69488 15.5893 8.65355 15.5869 8.6123C15.5299 8.395 15.2375 7.89091 14.0703 7.35254C13.6826 7.17372 13.2384 7.0125 12.7471 6.87598ZM6.88965 2.74609C5.16112 3.3291 3.7538 4.60789 3 6.25C3.79671 5.83355 4.79378 5.50034 5.92188 5.2832C6.16067 4.29844 6.49174 3.43504 6.88965 2.74609ZM11.5918 2.92871C11.9553 3.60537 12.2566 4.43273 12.4766 5.36621C13.4412 5.58128 14.2976 5.88347 14.999 6.25C14.3164 4.76322 13.0993 3.57304 11.5918 2.92871ZM9.16113 2.4043C8.97996 2.42782 8.43642 2.66385 7.85254 3.92969C7.69604 4.26897 7.55344 4.6517 7.42871 5.07129C7.93678 5.0246 8.46219 5 9 5C9.67726 5 10.3348 5.03921 10.9629 5.1123C10.8354 4.67674 10.6898 4.27989 10.5283 3.92969C9.95609 2.68907 9.42212 2.438 9.23047 2.40625C9.20738 2.40546 9.18428 2.40485 9.16113 2.4043Z"></path>
+</svg>한국어</a>
+</p>
+</div>
+<div class="bt_escrow displaynone" data-ez-escrow="">
+<a data-ez-link="#link" href="#">
+<img alt="올앳" class="bt_ew_allat on" data-ez-escrow-id="allat" src="/SkinImg/img/bt_ew_allat.png"/>
+ <img alt="이니시스" class="bt_ew_iniapy" data-ez-escrow-id="inicis" src="/SkinImg/img/bt_ew_iniapy.png"/>
+ <img alt="NHN한국사이버결제" class="bt_ew_kcp" data-ez-escrow-id="kcp" src="/SkinImg/img/bt_ew_kcp.png"/>
+ <img alt="한국정보통신" class="bt_ew_kicc" data-ez-escrow-id="kicc" src="/SkinImg/img/bt_ew_kicc.png"/>
+ <img alt="케이에스넷" class="bt_ew_ksnet" data-ez-escrow-id="ksnet" src="/SkinImg/img/bt_ew_ksnet.png"/>
+ <img alt="나이스페이먼츠" class="bt_ew_nice" data-ez-escrow-id="nicepay" src="/SkinImg/img/bt_ew_nice.png"/>
+ <img alt="토스페이먼츠" class="bt_ew_payments" data-ez-escrow-id="dacom" src="/SkinImg/img/bt_ew_payments.png"/>
+ <img alt="세틀뱅크" class="bt_ew_settle" data-ez-escrow-id="settlebank" src="/SkinImg/img/bt_ew_settle.png"/>
+ <img alt="스마트로" class="bt_ew_smartro" data-ez-escrow-id="smartro" src="/SkinImg/img/bt_ew_smartro.png"/>
+ <span>고객님은 안전거래를 위해 결제시 저희 쇼핑몰에서 가입한<br/>구매안전 서비스를 이용하실 수 있습니다. <em>[서비스가입정보확인]</em></span>
+</a>
+</div>
+</div>
+<div class="xans-element- xans-layout xans-layout-footer "><p class="copyright">
+                Copyright © 2025. wild-bread. All rights reserved.
+                <br/>
+                Hosting by Cafe24 Corp.
+            </p>
+<p class="address">
+<span>COMPANY. wild-bread</span>
+<span>CEO. 박병준</span>
+<span>TEL. 010-2308-2600</span>
+<br class="mo"/>
+<span>ADDRESS.   </span>
+<br/>
+<span>BUSINESS NUMBER. </span>
+<br class="mo"/>
+<span>E-MAIL. </span>
+<br class="mo"/>
+<span class="">PRIVACY OFFICER. <a href="mailto:prfsr.limitless@gmail.com">박병준(prfsr.limitless@gmail.com)</a></span>
+<br class="mo"/>
+<span>ONLINE BUSINESS.  </span>
+</p>
+</div>
+</div>
+</div>
+
+    <!-- 결제를 위한 필수 영역 -->
+    <div id="progressPaybar" style="display:none;">
+        <div id="progressPaybarBackground" class="layerProgress"></div>
+        <div id="progressPaybarView">
+            <div class="box">
+                <p class="graph">
+                    <span><img src="//img.echosting.cafe24.com/skin/base_ko_KR/layout/txt_progress.gif" alt="현재 결제가 진행중입니다."/></span>
+                    <span><img src="//img.echosting.cafe24.com/skin/base/layout/img_loading.gif" alt=""/></span>
+                </p>
+                <p class="txt">
+                    본 결제 창은 결제완료 후 자동으로 닫히며,결제 진행 중에 본 결제 창을 닫으시면<br/>
+                    주문이 되지 않으니 결제 완료 될 때 까지 닫지 마시기 바랍니다.
+                </p>
+            </div>
+        </div>
+    </div>
+    <!-- // 결제를 위한 필수 영역 -->
+
+        <div id="layoutDimmed" class="dimmed"></div><!-- dim 영역(기존 스킨에 존재하는 부분으로 공통으로 사용) -->
+        
+        <!-- 언어 번역 레이어 -->
+        <div class="localeSettingLayer ec-base-layer displaynone">
+        <div class="header">
+            <h3>Website Preference</h3>
+        </div>
+        <div class="content">
+            <fieldset>
+                <legend>검색</legend>
+                <div class="searchInput"><input type="text" class="keyword" id="" value="" placeholder="Search Language"/><button type="button" class="btnSearch"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewbox="0 0 24 24" class="icon" role="img"><path stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 19c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z"></path><path stroke="#000" stroke-linejoin="round" stroke-width="1.5" d="M22 22l-5-5"></path></svg></button></div>
+                <div class="selectBox notranslate">
+                    <ul>
+                            <!-- js로 목록 렌더링 -->
+                    </ul>
+                </div>
+            </fieldset>
+        </div>
+        <div class="ec-base-button">
+            <a href="javascript:void(0)" class="btnSubmit" role="button">Save</a>
+        </div>
+        <a href="javascript:void(0)" class="btnClose close" role="button">Close</a>
+        </div>
+        <!-- // 언어 번역 레이어 -->
+        
+        
+    </div>
+
+
+
+
+<!-- Custom Alert Modal -->
+<div id="customAlertModal" hidden>
+<div aria-hidden="true" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:#000;opacity:0.3;"></div>
+<div role="alertdialog" aria-modal="true" aria-labelledby="customAlertTitle" aria-describedby="customAlertDesc" tabindex="-1" style="position:fixed;top:50%;left:50%;z-index:1000;transform:translate(-50%, -50%);width:calc(100vw - 40px);max-width:450px;max-height:calc(100vh - 144px);padding:40px 20px 20px;box-sizing:border-box;background:#FFF;border:1px solid #D4D4D4;box-shadow:0 8px 24px 0 rgba(0, 0, 0, 0.15);">
+<div style="display:flex;flex-direction:column;gap:40px;justify-content:center;align-items:center;">
+<p id="customAlertTitle" style="font-size:16px;line-height:150%;color:#000;text-align:center;"></p>
+<span id="customAlertDesc" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">확인 버튼 또는 ESC 키를 눌러 닫을 수 있습니다.</span>
+<div style="display:flex;gap:8px;">
+<button type="button" data-action="confirm" onclick="CustomModal.closeAlert();" style="min-width:110px;height:48px;padding:0 20px;box-sizing:border-box;border-radius:4px;font-weight:600;font-size:14px;line-height:48px;color:var(--primary-on-text-color, #fff);background-color:var(--primary-color, #000);border:none;cursor:pointer;">확인</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Custom Confirm Modal -->
+<div id="customConfirmModal" hidden>
+<div aria-hidden="true" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;background:#000;opacity:0.3;"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="customConfirmTitle" aria-describedby="customConfirmDesc" tabindex="-1" style="position:fixed;top:50%;left:50%;z-index:1000;transform:translate(-50%, -50%);width:calc(100vw - 40px);max-width:450px;max-height:calc(100vh - 144px);padding:40px 20px 20px;box-sizing:border-box;background:#FFF;border:1px solid #D4D4D4;box-shadow:0 8px 24px 0 rgba(0, 0, 0, 0.15);">
+<div style="display:flex;flex-direction:column;gap:40px;justify-content:center;align-items:center;">
+<p id="customConfirmTitle" style="font-size:16px;line-height:150%;color:#000;text-align:center;"></p>
+<span id="customConfirmDesc" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">확인 또는 취소 버튼을 눌러 선택할 수 있습니다. ESC 키는 취소와 동일합니다.</span>
+<div style="display:flex;gap:8px;">
+<button type="button" data-action="cancel" onclick="CustomModal.closeConfirm(false);" style="min-width:110px;height:48px;padding:0 20px;box-sizing:border-box;border:1px solid #7D7D7F;border-radius:4px;font-weight:600;font-size:14px;line-height:48px;color:#000;background-color:#fff;cursor:pointer;">취소</button>
+<button type="button" data-action="confirm" onclick="CustomModal.closeConfirm(true);" style="min-width:110px;height:48px;padding:0 20px;box-sizing:border-box;border-radius:4px;font-weight:600;font-size:14px;line-height:48px;color:var(--primary-on-text-color, #fff);background-color:var(--primary-color, #000);border:none;cursor:pointer;">확인</button>
+</div>
+</div>
+</div>
+</div>
+
+<form id="frm_image_zoom" style="display:none;"></form>
+<div id="multi_option" style="display:none;"></div>
+<form id="frm_image_zoom" style="display:none;"></form>
+<form id="frm_image_zoom" style="display:none;"></form>
+<span itemscope="" itemtype="https://schema.org/Organization">
+<link itemprop="url" href="https://wildmental.cafe24.com">
+</span>
+<script type="text/javascript" src="/app/Eclog/js/cid.generate.js?vs=f9f0b181b93f616e1b2fd13a7eb68819&u=wildmental.1"></script>
+<script type="text/javascript" src="/app/Manage/js/inflowbeacon.js?vs=f9f0b181b93f616e1b2fd13a7eb68819&u=wildmental.1"></script>
+<script>        (function (i, s, o, g) {
+            var a = s.createElement(o), m = s.getElementsByTagName(o)[0];
+            var initialized = false;
+            var interval = null;
+
+            function safeInit() {
+              if (initialized) return;
+              if (typeof i.initCaWebAnalytics === 'function') {
+                try {
+                  i.initCaWebAnalytics({"mid":"wildmental","stype":"e","domain":"","shop_no":1,"lang":"ko_KR","mobile_flag":"F","send_endpoint":"https://ca-log.cafe24data.com","path_role":"PRODUCT_DETAIL","category_no":81,"category_name":"허브 쌀치아바타"});
+                  initialized = true;
+                } finally {
+                  if (interval) clearInterval(interval);
+                  a.onload = a.onreadystatechange = a.onerror = null;
+                }
+              }
+            }
+
+            a.onload = a.onreadystatechange = function () {
+              if (!a.readyState || a.readyState === 'loaded' || a.readyState === 'complete') {
+                safeInit();
+              }
+            };
+
+            a.onerror = function () {
+              if (interval) { clearInterval(interval); interval = null; }
+              a.onload = a.onreadystatechange = a.onerror = null;
+            };
+
+            interval = setInterval(safeInit, 200);
+            setTimeout(function () {
+              if (interval) { clearInterval(interval); interval = null; }
+            }, 10000);
+
+            safeInit();
+
+            a.async = 1;
+            a.setAttribute('crossorigin', 'anonymous');
+            a.src = g;
+            m.parentNode.insertBefore(a, m);
+        })(window, document, 'script', "//optimizer.poxo.com/ca2/analytics.js?v=20260915");</script>
+<script type="text/javascript" src="/ind-script/i18n.php?v=2609091504&lang=ko_KR&domain=front&type=" charset="utf-8"></script>
+
+<script src="/ind-script/optimizer.php?filename=vZnJcuM2EIbvFq95DnoqS-VqSfHENXbssjzjqtxAsCnBxBYsljlPn-ZijyWKJkApOWgj-_uxNbobVGGIgK0yZWrAKm8opE82ZZ9-l8mT_ano3_VME1qmT_94MFX38XPyW3IeZA8vDowk3HYXEqpUyWAa6w2P6GQCNClkJEA4IzaGwbtOmWZA2qg1UjsTmxMHjglIhRIgXQr0pvnyyNzm4fuSOJIIJkdpzjK0hQf8PmRrtWHSFYNSivq64UtlxEJJZxTnYIas77i3F1rPDcvXgy16x_jQvcKoZrRnVnG0U_LMKX3GmYSzjEg53HILUiWEkh_bvBCJjivRR7QBN6bYWDsQmuM8vjclWqc3KmMc0vt3VNuD3hgHrIXKPV6yW6ZDxAsvaT0pKdrlnrpE7LlQKNdrEB0l_dr66XuQk-8VVyQPMBXekbqN28yCed6d1gFEK14VjI84Qw4F8dzVQ7OCGDfv-UF9a7VRekf8soG_kJKotKzf79gL8L5nfgAvmrX8emApB4AlZH4daHsPBRiQFBbe1J_VnWE0uGfojGtlqmtm3T4yV8TkOwxeTbL66rTwma1ZA_3_gTvHuCUtOpWdxgOxTK6nsQIcyes4G7YiFoihmwCnd6QoqtfgPdotzf2aYQR6xgSDvVHmtXtvFyJST1-sHrXMbV8UFTROO5xadwNcw3_U5w2ReZebTimLsYzhip1YFeOeO3IiuKIEA32phuLnj9bG3XKBUjInJv0l-TU5TwtMd5rRMgrln87lXnc-2DGrZsfUNzBfNKnjVShQ4C_YpteshHRu1BZFFoRuIJZd9CqGcOo1CkfQ9_DMYOsIL7uvC-WlC5nkLkukFsVnej9XBFG0-zUrsJgjE1s9Dh6v_ajyGHm6j4iZ7XbYk51Mve3FQBZft1yWEcStbqqwP16cIQ3e_G5-rhTPlXenEYspJUakrgRZn0hqySxW0RXDavpowSsUWWFu57ACDk1xe6pOGpSbE1vCiRbj0su8q0KOF3sUNl7oTSI62PUF5DHtz5nMj8CX4eXYIfxbmw7jXAVfd-2h6UoWwamNfYfPnuUwqaHoVfqBXtDJw3tQmJUu8nyFSXiSwH39RIOWNspD32XTTiYQ7qzxyOUI4-nc17UfXhQqZgYIFnc3eFqOi3Hvl4orLGKYnkR3scZXcWNuQvLfSokJ2MSVpSDdJHRVu8Qkst2zk9BLXNEWvyESB22OVImbZ9xDrKZI_wFQ05sdcgsZV-uhimjjBFbEDuXADtksTKWd-gJVQGtNhTWzDuvW2dp3DwRGGGIrSdv3SGsBIuvP_Qh0a3IwtO9tI1ibsKdy-lC9FEQOBK0RdtEUt_G9HQhVI9QStLIstq1HZjeHHi8FYHT_TBPAmYMxZgRqA1MJFR6c80lsk_UWE_rb-Gmsy4CEgk1z0WtSRbf32ZA81lkuvFN4vGO0gTHSbWN91HPH7pT2OnZTeKwfBBjcUs8sfnKX7WPiFSZjjeU2RmGMkja281VdkLwl93i32BGYsH0at_qT1f8NVZPdsuMfSHYEXZ-wpg6gLcoOFcxjPsAJEyTjEN26Jm5jFIfZwYdeAU1f7_3NMYDo4IDfpr8ZpncmA8ztNqHko__WjPIOLtkL3v8X&type=js&k=795081d136f869f76e67831b7f33ea9a99893fb1&t=1789361892" ></script><script src="/ind-script/optimizer_user.php?filename=jZJNckIhDMcPQLc9B6ueoNt21RMgpLwoECTB-m5fnqgrRWaYSTL8_vkCdqAcMPqk-YDpQ-9ZR3I1gM6lWSs3qzAaD297fufXmgInhL9J-JjMCzKYlapoawQ8lfUhfWV2htFuUg7YkAipPsR7ZtYNd7DxF2cq88WZInv8bDhLMVKaG_1Y0R7UaKmBPCZVwGEBK1Pt2cpCcbie2-MH5PtP-Gr-UCSU1c6kBGWrInAW9YtncENRpBMooXZyH_8eDmULGNfrdG9unbEGQV4o_yyYMyY_96VkDfBt8jz8SUkKhUFTZrv8Bw&type=js&k=ad5a9d599006c67b8c3133b289b8003831b91354&t=1773635936&user=T" ></script>
+<script type="text/javascript">
+var sIsFrontDesignChangeRequired = 'F';
+var sYtshopping = 'F';
+var sIsYoutubeShops = 'F';
+var sIsValidChRef = 'F';
+var sChRef = '';
+var sIsDropshipping = 'F';
+if (sIsValidChRef === 'T') {
+sessionStorage.setItem('ch_ref', sChRef);
+}
+// ch_ref 존재 여부 체크
+CAFE24.hasChRef = function() {
+if (sIsValidChRef === 'T' && sessionStorage.getItem('ch_ref')) {
+return true;
+}
+return false;
+}
+// ch_ref 데이터 조회
+CAFE24.getChRefData = function() {
+if (sIsValidChRef === 'T') {
+return sessionStorage.getItem('ch_ref');
+}
+}
+// 프론트 디자인 변경이 필요한지 여부 반환
+CAFE24.checkChannelUI = function() {
+// [ECHOSTING-598429] 드롭쉬핑은 항상 전체 UI 노출
+if (sIsDropshipping === 'T') {
+return false;
+}
+if ((sIsFrontDesignChangeRequired === 'T' && sessionStorage.getItem('ch_ref')) || sIsYoutubeShops === 'T') {
+return true;
+} else {
+return false;
+}
+}
+// 파라미터에 ch_ref 추가
+CAFE24.attachChRef = function(sUrl) {
+if (sUrl) {
+var sChRef = CAFE24.getChRefData();
+if (sChRef) {
+var sSeparator = (sUrl.includes('?')) ? '&' : '?';
+sUrl += sSeparator + 'ch_ref=' + sChRef;
+}
+}
+return sUrl;
+}
+var sIsCheckout = 'F';
+var sCheckoutToken = '';
+if (sIsCheckout === 'T') {
+sessionStorage.setItem('checkoutToken', sCheckoutToken);
+} else {
+sessionStorage.removeItem('checkoutToken');
+}
+CAFE24.getCheckoutToken = function() {
+if (sIsCheckout === 'T') {
+return sessionStorage.getItem('checkoutToken');
+}
+}
+CAFE24.attachCheckoutParam = function(sUrl) {
+if (sUrl) {
+var sCheckoutToken = CAFE24.getCheckoutToken();
+if (sCheckoutToken) {
+var sSeparator = (sUrl.includes('?')) ? '&' : '?';
+sUrl += sSeparator + 'checkoutToken=' + sCheckoutToken;
+}
+}
+return sUrl;
+}
+CAFE24.MOBILE_WEB = false; var mobileWeb = CAFE24.MOBILE_WEB;
+try {
+var isUseLoginKeepingSubmit = false;
+// isSeqNoKeyExpiretime
+function isSeqNoKeyExpiretime(iExpiretime)
+{
+var sDate = new Date();
+var iNow = Math.floor(sDate.getTime() / 1000);
+// 유효시간 확인
+if (iExpiretime > iNow) {
+return false;
+}
+return true;
+}
+function isUseLoginKeeping()
+{
+// 디바이스 확인
+if (EC_MOBILE_DEVICE === false) {
+return;
+}
+// 로그인 여부
+var isLogin = document.cookie.match(/(?:^| |;)iscache=F/) ? true : false
+if (isLogin) {
+return;
+}
+var sLoginKeepingInfo = localStorage.getItem('use_login_keeping_info');
+var iSeqnoExpiretime;
+var iSeqNoKey;
+if (sLoginKeepingInfo == null) {
+iSeqnoExpiretime = localStorage.getItem('seq_no_key_expiretime');
+iSeqNoKey = localStorage.getItem('seq_no_key');
+// 유효시간, key 값 확인
+if (iSeqnoExpiretime === null || iSeqNoKey === null) {
+return;
+}
+} else {
+var oLoginKeepingInfo = JSON.parse(sLoginKeepingInfo);
+iSeqNoKey = oLoginKeepingInfo.seq_no_key;
+iSeqnoExpiretime = oLoginKeepingInfo.seq_no_key_expiretime;
+if (isNaN(iSeqNoKey) === true || isNaN(iSeqnoExpiretime) === true) {
+return;
+}
+}
+if (isSeqNoKeyExpiretime(iSeqnoExpiretime) === false) {
+return;
+}
+useLoginKeepingSubmit();
+}
+function findGetParamValue(paramKey)
+{
+var result = null,
+tmp = [];
+location.search.substr(1).split('&').forEach(function (item) {
+tmp = item.split('=');
+if (tmp[0] === paramKey) result = decodeURIComponent(tmp[1]);
+});
+return result;
+}
+function useLoginKeepingSubmit()
+{
+var iSeqnoExpiretime;
+var iSeqNoKey;
+var sUseLoginKeepingIp;
+var sLoginKeepingInfo = localStorage.getItem('use_login_keeping_info');
+if (sLoginKeepingInfo == null) {
+iSeqnoExpiretime = localStorage.getItem('seq_no_key_expiretime');
+iSeqNoKey = localStorage.getItem('seq_no_key');
+} else {
+var oLoginKeepingInfo = JSON.parse(sLoginKeepingInfo);
+iSeqNoKey = oLoginKeepingInfo.seq_no_key;
+iSeqnoExpiretime = oLoginKeepingInfo.seq_no_key_expiretime;
+sUseLoginKeepingIp = oLoginKeepingInfo.use_login_keeping_ip;
+}
+var oForm = document.createElement('form');
+oForm.method = 'post';
+oForm.action = '/exec/front/member/LoginKeeping';
+document.body.appendChild(oForm);
+var oSeqNoObj = document.createElement('input');
+oSeqNoObj.name = 'seq_no_key';
+oSeqNoObj.type = 'hidden';
+oSeqNoObj.value = iSeqNoKey;
+oForm.appendChild(oSeqNoObj);
+oSeqNoObj = document.createElement('input');
+oSeqNoObj.name = 'seq_no_key_expiretime';
+oSeqNoObj.type = 'hidden';
+oSeqNoObj.value = iSeqnoExpiretime;
+oForm.appendChild(oSeqNoObj);
+var returnUrl = findGetParamValue('returnUrl');
+if (returnUrl == '' || returnUrl == null) {
+returnUrl = location.pathname + location.search;
+}
+oSeqNoObj = document.createElement('input');
+oSeqNoObj.name = 'returnUrl';
+oSeqNoObj.type = 'hidden';
+oSeqNoObj.value = returnUrl;
+oForm.appendChild(oSeqNoObj);
+if (sUseLoginKeepingIp != undefined) {
+oSeqNoObj = document.createElement('input');
+oSeqNoObj.name = 'use_login_keeping_ip';
+oSeqNoObj.type = 'hidden';
+oSeqNoObj.value = sUseLoginKeepingIp;
+oForm.appendChild(oSeqNoObj);
+}
+oForm.submit();
+isUseLoginKeepingSubmit = true;
+}
+isUseLoginKeeping();
+} catch(e) {
+}
+var bUseElastic = false;
+var sSearchBannerUseFlag = 'F';
+if (typeof CAFE24.SHOP_FRONT_NEW_LIKE_COMMON !== "undefined") {CAFE24.SHOP_FRONT_NEW_LIKE_COMMON.init({"bIsUseLikeProduct":false,"bIsUseLikeCategory":false});}
+if (typeof CAFE24.SHOP_FRONT_REVIEW_TALK_REVIEW_COUNT !== "undefined") {CAFE24.SHOP_FRONT_REVIEW_TALK_REVIEW_COUNT.bIsReviewTalk = 'F';}
+var iProductNo = 16;
+var product_min = '1';var order_limit_type = 'O';
+var delvtype = 'A';
+CAFE24.SHOP_CURRENCY_INFO = {"1":{"aShopCurrencyInfo":{"currency_code":"KRW","currency_no":"410","currency_symbol":"\uffe6","currency_name":"South Korean won","currency_desc":"\uffe6 \uc6d0 (\ud55c\uad6d)","decimal_place":0,"round_method_type":"F"},"aShopSubCurrencyInfo":null,"aBaseCurrencyInfo":{"currency_code":"KRW","currency_no":"410","currency_symbol":"\uffe6","currency_name":"South Korean won","currency_desc":"\uffe6 \uc6d0 (\ud55c\uad6d)","decimal_place":0,"round_method_type":"F"},"fExchangeRate":1,"fExchangeSubRate":null,"aFrontCurrencyFormat":{"head":"","tail":"\uc6d0"},"aFrontSubCurrencyFormat":{"head":"","tail":""},"bPresentmentEnabled":false,"aPresentmentCurrencyInfo":null,"fExchangePresentmentRate":null,"aFrontPresentmentCurrencyFormat":null,"bGlobaleEnabled":false}}; var SHOP_CURRENCY_INFO = CAFE24.SHOP_CURRENCY_INFO;
+var mileage_val = '0';var mileage_generate_calc = '0';
+var basket_type = 'A0000';var product_name = '향기로운 허브 쌀치아바타';var product_max_type = 'F';var has_option = 'F';var mileage_icon = '//img.echosting.cafe24.com/design/skin/admin/ko_KR/ico_product_point.gif';var mileage_icon_alt = '적립금';var price_unit_head = '';var price_unit_tail = '원';var option_push_button = 'F';var product_image_tiny = '20260914/a7c5151248c6000b5cf7418a8c9aa15b.jpg';var is_adult_product = 'F';var is_individual_buy = 'F';var is_soldout_icon = 'F';var link_product_detail = '/product/향기로운-허브-쌀치아바타/16/display/1/';var sIsNonmemberLimit = 'F';
+var product_max = '-1';
+var buy_unit_type = 'O';var buy_unit = '1';
+var product_price = '5200';var product_price_content = '';var is_selling_price = 'S';var product_price_mobile = '5200';var mobile_dc_price = '';var isMobileDcStatus = 'F';var product_price_ref = '';var currency_disp_type = 'P';
+$.data(document,'SameImage','F');
+var _iPrdtPriceOrg = 4727;
+var _iPrdtPriceTax = 473;
+var qrcode_class = 'EC_Qrcode6aa8b45835d1c';
+var sSocialUrl="/exec/front/Product/Social/";
+var sIsMileageDisplay = 'F';
+if (typeof CAFE24.SHOP_FRONT_NEW_OPTION_COMMON !== "undefined") {CAFE24.SHOP_FRONT_NEW_OPTION_COMMON.initObject();}
+if (typeof CAFE24.SHOP_FRONT_NEW_OPTION_BIND !== "undefined") {CAFE24.SHOP_FRONT_NEW_OPTION_BIND.initChooseBox();}
+if (typeof CAFE24.SHOP_FRONT_NEW_OPTION_DATA !== "undefined") {CAFE24.SHOP_FRONT_NEW_OPTION_DATA.initData();}
+var sMileageUnit = '[:PRICE:]원';
+var sIsDisplayNonmemberPrice = "F";
+var sNonmemberPrice = '-';
+if (typeof setCategoryCookie === "function") { setCategoryCookie({"category_no":81,"category_name":"\ud5c8\ube0c \uc300\uce58\uc544\ubc14\ud0c0"}); }
+var iCategoryNo = '81';var iDisplayGroup = '1';var option_msg = '필수 옵션을 선택해 주세요.';var sLoginURL = 'login.html';var bPrdOptLayer = '';var sOptionType = 'T';
+var aReserveStockMessage = {"show_stock_message":"F","Q":"[\uc7ac\uace0 : [:PRODUCT_STOCK:]\uac1c][\ub2f9\uc77c\ubc1c\uc1a1]","R":"[\uc7ac\uace0 : [:PRODUCT_STOCK:]\uac1c][\uc608\uc57d\uc8fc\ubb38]","N":"","stock_message_replace_name":"[:\uc218\ub7c9:]"};
+var _iPrdtPriceOrg = 4727;
+var _iPrdtPriceTax = 473;
+var option_type = 'T';var product_code = 'P000000Q';var item_code = 'P000000Q000A';var item_count = '1';var stock_number = '0';var single_option_stock_data = '{\"use_stock\":false,\"use_soldout\":\"F\",\"stock_number\":0,\"is_reserve_stat\":\"N\"}';var item_listing_type = 'S';var product_option_price_display = 'T';
+var add_option_name = '';
+var aLogData = {"log_server1":"eclog2-181.cafe24.com","log_server2":"eclog2-181.cafe24.com","mid":"wildmental","stype":"e","domain":"","shop_no":1,"lang":"ko_KR","ver":2,"hash":"","ca":"cfa-js.cafe24.com\/cfa.js","etc":"","mobile_flag":"F"};
+var sMileageName = '적립금';
+var sMileageUnit = '[:PRICE:]원';
+var sDepositName = '예치금';
+var sDepositUnit = '원';
+</script></body>
+</html>
