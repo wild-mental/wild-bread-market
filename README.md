@@ -1,4 +1,4 @@
-# makji-cafe24-lab — MAKJI 브레드마켓 프로토타입
+# wild-bread-market — MAKJI 브레드마켓 프로토타입
 
 MAKJI 브레드마켓 제안(발표 덱 `index.html`)의 **B안 프로토타입**이다. 두 부분으로 되어 있다.
 
@@ -8,6 +8,8 @@ MAKJI 브레드마켓 제안(발표 덱 `index.html`)의 **B안 프로토타입*
 | 카페24 연동 레퍼런스 | `/admin/cafe24` · `/api/cafe24/oauth/*` · `/api/admin/cafe24/*` · `/api/public/bread-widget` · `/widgets/makji-bread.js` | `docs/guides/MAKJI_Cafe24_MVP_교육가이드.html`의 실습 코드 40개 파일. 예제 몰 `wildmental` · shop_no 1 · 상품 16(P000000Q) · 분류 81 · display_group 1. |
 
 수치와 화면은 기획 예시다. 실제 시장 데이터가 아니다.
+
+저장소: https://github.com/wild-mental/wild-bread-market — 공개 저장소이므로 `.env.local`·비밀값을 커밋하지 않는다. 배포·연동은 `docs/DEPLOY_SETUP_GUIDE.md`.
 
 ## 검증 명령
 
@@ -43,7 +45,8 @@ supabase/migrations/0001_cafe24_lab.sql  테이블·RLS (가이드)
 scripts/smoke.mjs  scripts/lib/chrome.mjs  scripts/fixtures/
 tests/                                   Vitest
 docs/DECISION_LOG.md                     가이드·발표자료에 없는 결정 (CORE/MINOR)
-docs/HUMAN_TODO.md                       사람이 해야 할 웹 작업 순서
+docs/HUMAN_TODO.md                       사람이 해야 할 웹 작업 순서 (체크리스트)
+docs/DEPLOY_SETUP_GUIDE.md               Supabase · Vercel · 카페24 배포·연동 완료 가이드
 docs/live-test-report.md                 실제 연동 검증 기록표 (가이드)
 ```
 
@@ -53,4 +56,4 @@ docs/live-test-report.md                 실제 연동 검증 기록표 (가이�
 npm run dev   # http://localhost:3000 — 목업 화면은 환경변수 없이 열린다
 ```
 
-관리 화면·연동 API는 `.env.example`의 값이 있어야 동작한다. 값 입력과 카페24·Supabase·Vercel 설정은 사람이 `docs/HUMAN_TODO.md` 순서대로 한다. 비밀값은 커밋하거나 AI 에이전트에게 주지 않는다.
+관리 화면·연동 API는 `.env.example`의 값이 있어야 동작한다. 값 입력과 카페24·Supabase·Vercel 설정은 사람이 `docs/DEPLOY_SETUP_GUIDE.md`(체크리스트는 `docs/HUMAN_TODO.md`) 순서대로 한다. 비밀값은 커밋하거나 AI 에이전트에게 주지 않는다.

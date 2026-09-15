@@ -2,7 +2,7 @@
 
 이 프로토타입은 로컬 검증(`npm test` · `npm run build` · `npm run lint` · `node scripts/smoke.mjs`)까지만 끝낸 상태다.
 아래 작업은 계정·대시보드·비밀값이 필요해서 AI 에이전트가 하지 않았다. **위에서부터 순서대로** 진행한다.
-괄호 안 번호는 `docs/guides/MAKJI_Cafe24_MVP_교육가이드.html`의 해당 쪽이다.
+괄호 안 번호는 [교육가이드](https://wild-mental.github.io/sesac-4th-corp-rfp/docs/guides/MAKJI_Cafe24_MVP_%EA%B5%90%EC%9C%A1%EA%B0%80%EC%9D%B4%EB%93%9C.html)(발표 저장소 `sesac-4th-corp-rfp`의 `docs/guides/MAKJI_Cafe24_MVP_교육가이드.html`)의 해당 쪽이다. 단계별 방법·확인 기준·막힐 때 대처는 `docs/DEPLOY_SETUP_GUIDE.md`에 있다.
 
 표기: `[웹]` 브라우저에서 설정 · `[비밀값]` 사람만 보고 사람만 입력 · `[확인]` 결과를 눈으로 확인
 
@@ -25,7 +25,7 @@
 
 ## 2. GitHub · Vercel
 
-- [ ] TODO-09 `[웹]` GitHub에 비공개 저장소를 만들고 이 폴더를 push한다. push 전에 `git status --short | grep -E "\.env"` 결과에 `.env.example`만 있는지 본다 (4-1)
+- [x] TODO-09 `[웹]` GitHub 공개 저장소 `wild-mental/wild-bread-market`에 push했다. 이후 push 전마다 `git ls-files | grep -E '(^|/)\.env'` 결과가 `.env.example` 한 줄뿐인지 본다 (4-1)
 - [ ] TODO-10 `[웹]` Vercel에서 저장소를 가져온다 (4-2)
 - [ ] TODO-11 `[비밀값]` Vercel Environment Variables에 1차 배포용 5개(`NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` · `SUPABASE_SECRET_KEY` · `CAFE24_TOKEN_ENCRYPTION_KEY` · `ADMIN_USER_IDS=pending`)를 넣고 배포한다 (4-2)
 - [ ] TODO-12 `[웹]` 프로젝트 Domains의 Production 주소(해시 없는 `https://…vercel.app`)를 확인한다 (4-2)

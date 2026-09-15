@@ -36,7 +36,7 @@ const projectDir = resolve(option('--project') ?? join(HERE, '..'));
 // ── 실습 계약 값 (연동 레퍼런스 lab-config.ts와 같음) ────────────────
 const STOREFRONT = 'https://wildmental.cafe24.com';
 const PRODUCT_PATH = '/product/%ED%96%A5%EA%B8%B0%EB%A1%9C%EC%9A%B4-%ED%97%88%EB%B8%8C-%EC%8C%80%EC%B9%98%EC%95%84%EB%B0%94%ED%83%80/16/category/81/display/1/';
-const APP_ORIGIN = 'https://makji-cafe24-lab.test'; // 브라우저 점검용 가짜 앱 주소 (요청은 로컬 서버로 돌린다)
+const APP_ORIGIN = 'https://wild-bread-market.test'; // 브라우저 점검용 가짜 앱 주소 (요청은 로컬 서버로 돌린다)
 const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
 const USER_ID = '22222222-2222-4222-8222-222222222222';
 const SCOPES = 'mall.read_application,mall.write_application,mall.read_product,mall.write_product';
