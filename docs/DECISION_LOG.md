@@ -50,3 +50,13 @@ MINOR: 8
 ## MINOR-08 · 오늘 예측은 브라우저 localStorage에만 저장
 - 결정: `/predict` 제출·수정 값은 `makji-mvp:prediction:2026-09-17` 키로 이 브라우저에만 저장한다. 저장소를 못 쓰면 메모리에만 두고, 읽을 때는 세 지수 모두 UP/DOWN인지 다시 검사한다.
 - 근거: 이번 범위는 "DB·외부 시세 API를 쓰지 않는 목업"이라 서버 저장이 없다. 새로고침 후에도 저장 완료 화면과 월~금 도트를 보여 주려면 브라우저 저장이 필요하다.
+
+---
+
+## 종료 기록 (2026-09-15)
+
+- 검증: `npm test` 56/56 · `npm run build` · `npm run lint` exit 0 · `node scripts/smoke.mjs` 24/24 PASS (aztks-agent 최종 판정에서 직접 재실행해 일치)
+- 미검증(사람 작업 필요): 실제 카페24 OAuth·상품 16 수정/복원·Scripttags 설치, 실제 Supabase·Vercel 배포 — `docs/HUMAN_TODO.md`
+
+STOP REASON: PROTOTYPE_VERIFIED
+AZTKS VERDICT: GO
