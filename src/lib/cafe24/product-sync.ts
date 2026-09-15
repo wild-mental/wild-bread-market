@@ -31,11 +31,19 @@ export type LogEntry = {
 export type SyncDeps = {
   getProduct(): Promise<Cafe24Product>;
   getCategoryProductNos(): Promise<number[]>;
-  putProduct(fields: Partial<Baseline>): Promise<void>;
+  // PUT 응답 본문의 product(카페24가 담아 줄 때). 없으면 null.
+  putProduct(fields: Partial<Baseline>): Promise<Partial<Cafe24Product> | null>;
   loadState(): Promise<ProductState | null>;
   saveState(state: ProductState): Promise<void>;
   log(entry: LogEntry): Promise<void>;
+  sleep?(ms: number): Promise<void>; // 테스트에서 기다리지 않도록 바꿔 끼운다.
 };
+
+// 카페24 조회 API는 수정 직후 한동안 이전 값을 돌려줄 수 있다(실제 몰에서 수십 초간 이전 값과 새 값이 번갈아 읽힘).
+// PUT 응답으로 확인하지 못하면 이 간격(ms)을 기다리며 다시 조회한다: 최대 5번, 합계 약 10초.
+export const VERIFY_READ_DELAYS_MS = [0, 1000, 2000, 3000, 4000] as const;
+
+export type VerifiedBy = 'put_response' | 'reread';
 
 export class SyncError extends Error {
   constructor(
@@ -74,6 +82,36 @@ function errorCodeOf(e: unknown): string {
   }
   return e instanceof Error ? e.name : 'UNKNOWN_ERROR';
 }
+
+// 카페24가 4xx로 거절한 요청은 반영되지 않았다. 타임아웃·5xx·네트워크 오류는 반영됐을 수 있다.
+function isRejected(e: unknown): boolean {
+  const status = e && typeof e === 'object' && 'status' in e ? Number(e.status) : NaN;
+  return status >= 400 && status < 500;
+}
+
+// PUT 응답의 상품 값. 다른 상품이거나, 이번에 바꾼 필드가 응답에 없으면 쓰지 않는다(null → 재조회로 확인).
+// 바꾸지 않은 필드가 응답에 없으면 수정 전 값을 그대로 둔다.
+function fieldsFromPutResponse(
+  product: Partial<Cafe24Product> | null,
+  before: Baseline,
+  changes: Partial<Baseline>,
+): Baseline | null {
+  if (!product || Number(product.product_no) !== LAB.product.productNo) return null;
+  if (product.product_code !== undefined && product.product_code !== LAB.product.productCode) return null;
+  const hasPrice = product.price !== undefined && product.price !== null;
+  const hasSummary = product.summary_description !== undefined;
+  if ((changes.price !== undefined && !hasPrice) || (changes.summary_description !== undefined && !hasSummary)) {
+    return null;
+  }
+  const price = hasPrice ? Number(product.price) : before.price;
+  if (!Number.isFinite(price)) return null;
+  return {
+    price: Math.round(price),
+    summary_description: hasSummary ? (product.summary_description ?? '') : before.summary_description,
+  };
+}
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // 번호만 믿지 않고 상품코드까지 대조한다. 다른 몰·다른 상품을 수정하는 사고를 막는다.
 async function readVerifiedProduct(deps: SyncDeps): Promise<Cafe24Product> {
@@ -147,25 +185,42 @@ async function writeAndVerify(
   },
 ) {
   const { action, scenario, before, target } = input;
+  const changes = diffFields(before, target);
   let putError: unknown;
+  let putResponse: Partial<Cafe24Product> | null = null;
   try {
-    await deps.putProduct(diffFields(before, target));
+    putResponse = await deps.putProduct(changes);
   } catch (e) {
     putError = e;
   }
 
-  // PUT 응답이 실패·타임아웃이어도 실제로는 반영됐을 수 있다. 항상 다시 조회해 대조한다.
-  let after: Baseline | null = null;
-  try {
-    after = toFields(await deps.getProduct());
-  } catch {
-    after = null;
-  }
-
-  if (after && same(after, target)) {
+  const verified = async (after: Baseline, verifiedBy: VerifiedBy, readAttempts: number) => {
     await input.onVerified();
     await deps.log({ action, scenario, before, target, result: 'applied' });
-    return { result: 'applied' as const, before, after, target };
+    return { result: 'applied' as const, before, after, target, verifiedBy, readAttempts };
+  };
+
+  // 1) PUT이 성공했고 응답에 수정된 값이 담겨 있으면 그것으로 확인한다. 조회 API의 늦은 반영을 피한다.
+  if (!putError) {
+    const fromResponse = fieldsFromPutResponse(putResponse, before, changes);
+    if (fromResponse && same(fromResponse, target)) return verified(fromResponse, 'put_response', 0);
+  }
+
+  // 2) 그 밖에는 다시 조회해 대조한다. PUT 응답이 실패·타임아웃이어도 실제로는 반영됐을 수 있다.
+  //    카페24가 4xx로 거절했으면 한 번만 조회하고, 아니면 목표값이 보일 때까지 간격을 두고 재시도한다.
+  const delays = putError && isRejected(putError) ? [0] : VERIFY_READ_DELAYS_MS;
+  const sleep = deps.sleep ?? wait;
+  let after: Baseline | null = null;
+  let readAttempts = 0;
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+    readAttempts++;
+    try {
+      after = toFields(await deps.getProduct());
+    } catch {
+      after = null;
+    }
+    if (after && same(after, target)) return verified(after, 'reread', readAttempts);
   }
 
   const result: SyncResult = after && same(after, before) ? 'failed' : 'unknown';
@@ -177,7 +232,7 @@ async function writeAndVerify(
     result === 'failed'
       ? '카페24에 반영되지 않았습니다. errorCode를 확인하세요.'
       : '반영 여부를 확정하지 못했습니다. [상품 조회]로 현재값을 확인하세요.',
-    { errorCode, after },
+    { errorCode, after, readAttempts },
   );
 }
 

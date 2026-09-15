@@ -29,10 +29,11 @@ export function productDeps(actorId: string): SyncDeps {
     },
 
     async putProduct(fields) {
-      await cafe24Admin(`/api/v2/admin/products/${productNo}`, {
+      const data = await cafe24Admin<{ product?: Partial<Cafe24Product> } | null>(`/api/v2/admin/products/${productNo}`, {
         method: 'PUT',
         body: { shop_no: LAB.shopNo, request: fields },
       });
+      return data?.product ?? null;
     },
 
     async loadState() {

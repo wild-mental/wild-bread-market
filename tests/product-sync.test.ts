@@ -10,6 +10,9 @@ import {
 } from '@/lib/cafe24/product-sync';
 
 // 가짜 카페24 몰: wildmental의 상품 16(P000000Q, 5,200원)을 메모리에 둔다.
+// putResponse: PUT 응답에 product를 담는 방식. staleReads: 수정 직후 이전 값을 돌려줄 조회 횟수.
+type PutResponse = 'none' | 'full' | ((product: Cafe24Product) => Partial<Cafe24Product> | null);
+
 function fakeMall(overrides: Partial<Cafe24Product> = {}) {
   const product: Cafe24Product = {
     product_no: 16,
@@ -22,10 +25,20 @@ function fakeMall(overrides: Partial<Cafe24Product> = {}) {
   let state: ProductState | null = null;
   const logs: LogEntry[] = [];
   const puts: Record<string, unknown>[] = [];
+  const sleeps: number[] = [];
   let failNextPut: Error | null = null;
+  let putResponse: PutResponse = 'none';
+  let staleAfterPut = 0;
+  let stale: { snapshot: Cafe24Product; remaining: number } | null = null;
+  let reads = 0;
 
   const deps: SyncDeps = {
     async getProduct() {
+      reads++;
+      if (stale && stale.remaining > 0) {
+        stale.remaining--;
+        return { ...stale.snapshot };
+      }
       return { ...product };
     },
     async getCategoryProductNos() {
@@ -38,8 +51,11 @@ function fakeMall(overrides: Partial<Cafe24Product> = {}) {
         failNextPut = null;
         throw e;
       }
+      if (staleAfterPut > 0) stale = { snapshot: { ...product }, remaining: staleAfterPut };
       if (fields.price !== undefined) product.price = `${fields.price}.00`;
       if (fields.summary_description !== undefined) product.summary_description = fields.summary_description;
+      if (putResponse === 'none') return null;
+      return putResponse === 'full' ? { ...product } : putResponse({ ...product });
     },
     async loadState() {
       return state;
@@ -50,14 +66,21 @@ function fakeMall(overrides: Partial<Cafe24Product> = {}) {
     async log(entry) {
       logs.push(entry);
     },
+    async sleep(ms) {
+      sleeps.push(ms);
+    },
   };
   return {
     deps,
     product,
     logs,
     puts,
+    sleeps,
+    reads: () => reads,
     state: () => state,
     failNextPut: (e: Error) => (failNextPut = e),
+    putResponse: (mode: PutResponse) => (putResponse = mode),
+    staleReadsAfterPut: (count: number) => (staleAfterPut = count),
   };
 }
 
@@ -114,12 +137,13 @@ describe('상품 16 연동 흐름', () => {
     expect(result.result).toBe('applied');
   });
 
-  it('PUT이 거절되고 값이 그대로면 failed로 기록한다', async () => {
+  it('PUT이 거절되고 값이 그대로면 기다리지 않고 failed로 기록한다', async () => {
     const mall = fakeMall();
     await saveBaseline(mall.deps);
     mall.failNextPut(Object.assign(new Error('422'), { status: 422, code: 'invalid' }));
     await expect(applyChange(mall.deps, 'up', false)).rejects.toMatchObject({ code: 'WRITE_FAILED' });
     expect(mall.logs.at(-1)).toMatchObject({ result: 'failed', errorCode: 'HTTP_422:invalid' });
+    expect(mall.sleeps).toEqual([]);
   });
 
   it('복원하면 5,200원과 원래 요약설명으로 돌아온다', async () => {
@@ -140,5 +164,92 @@ describe('상품 16 연동 흐름', () => {
     mall.product.price = '4500.00';
     await expect(restoreBaseline(mall.deps)).rejects.toMatchObject({ status: 409, code: 'EDITED_ELSEWHERE' });
     expect(mall.product.price).toBe('4500.00');
+  });
+});
+
+describe('수정 직후 조회가 늦게 반영될 때(카페24 실측 현상)', () => {
+  it('PUT 응답에 수정된 상품이 오면 재조회 없이 applied', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.putResponse('full');
+    mall.staleReadsAfterPut(99); // 조회는 계속 이전 값
+    const readsBefore = mall.reads();
+    const result = await applyChange(mall.deps, 'down', true);
+    expect(result).toMatchObject({ result: 'applied', verifiedBy: 'put_response', readAttempts: 0 });
+    expect(result.after.price).toBe(4940);
+    expect(mall.reads() - readsBefore).toBe(1); // 수정 전 현재값 조회 1번뿐
+    expect(mall.state()?.applied?.price).toBe(4940);
+  });
+
+  it('PUT 응답이 바꾼 필드만 담아도 확인하고, 바꾼 필드가 빠졌으면 재조회로 넘어간다', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.putResponse((p) => ({ product_no: p.product_no, summary_description: p.summary_description })); // price 없음
+    const summaryOnly = await applyChange(mall.deps, 'up', false); // 요약설명만 바뀌는 적용
+    expect(Object.keys(mall.puts[0])).toEqual(['summary_description']);
+    expect(summaryOnly).toMatchObject({ result: 'applied', verifiedBy: 'put_response' });
+
+    const restored = await restoreBaseline(mall.deps);
+    expect(restored).toMatchObject({ result: 'applied', verifiedBy: 'put_response' });
+
+    const withPrice = await applyChange(mall.deps, 'down', true); // 가격도 바뀌는데 응답에 price가 없음
+    expect(Object.keys(mall.puts[2]).sort()).toEqual(['price', 'summary_description']);
+    expect(withPrice).toMatchObject({ result: 'applied', verifiedBy: 'reread', readAttempts: 1 });
+  });
+
+  it('PUT 응답이 다른 상품이면 쓰지 않고 재조회로 확인한다', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.putResponse((p) => ({ ...p, product_no: 17 }));
+    const result = await applyChange(mall.deps, 'down', true);
+    expect(result).toMatchObject({ result: 'applied', verifiedBy: 'reread' });
+  });
+
+  it('PUT 응답에 값이 없으면 목표값이 보일 때까지 간격을 두고 다시 조회한다', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.staleReadsAfterPut(2);
+    const result = await applyChange(mall.deps, 'down', true);
+    expect(result).toMatchObject({ result: 'applied', verifiedBy: 'reread', readAttempts: 3 });
+    expect(mall.sleeps).toEqual([1000, 2000]);
+    expect(mall.state()?.applied?.price).toBe(4940); // 다음 복원이 EDITED_ELSEWHERE로 막히지 않는다
+    expect(mall.logs.at(-1)).toMatchObject({ action: 'apply', result: 'applied' });
+  });
+
+  it('복원도 같은 방식으로 확인한다', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    await applyChange(mall.deps, 'down', true);
+    mall.staleReadsAfterPut(1);
+    const restored = await restoreBaseline(mall.deps);
+    expect(restored).toMatchObject({ result: 'applied', verifiedBy: 'reread', readAttempts: 2 });
+    expect(mall.state()?.applied).toBeNull();
+  });
+
+  it('재시도(최대 5번, 약 10초) 동안 계속 이전 값이면 VERIFY_MISMATCH로 기록한다', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.staleReadsAfterPut(99);
+    await expect(applyChange(mall.deps, 'down', true)).rejects.toMatchObject({
+      status: 502,
+      code: 'WRITE_FAILED',
+      detail: { errorCode: 'VERIFY_MISMATCH', readAttempts: 5 },
+    });
+    expect(mall.sleeps).toEqual([1000, 2000, 3000, 4000]);
+    expect(mall.logs.at(-1)).toMatchObject({ result: 'failed', errorCode: 'VERIFY_MISMATCH' });
+    expect(mall.state()?.applied).toBeNull();
+  });
+
+  it('PUT이 타임아웃이고 조회가 늦게 반영돼도 재시도로 applied', async () => {
+    const mall = fakeMall();
+    await saveBaseline(mall.deps);
+    mall.staleReadsAfterPut(3);
+    const put = mall.deps.putProduct;
+    mall.deps.putProduct = async (fields) => {
+      await put(fields);
+      throw Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+    };
+    const result = await applyChange(mall.deps, 'down', true);
+    expect(result).toMatchObject({ result: 'applied', verifiedBy: 'reread', readAttempts: 4 });
   });
 });

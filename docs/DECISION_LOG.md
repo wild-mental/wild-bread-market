@@ -77,3 +77,14 @@ AZTKS VERDICT: GO
 - POST-05 · **설정 전 동작 변경**(가이드 계약 영향): `src/proxy.ts`는 Supabase 공개값이 없으면 세션 갱신을 건너뛰고, `/admin/cafe24`는 로그인에 필요한 값이 없으면 500 대신 `/admin/setup`으로 307. 값이 있을 때의 동작(로그인 없음 → `/login`, 비관리자 → UUID 안내)은 그대로다.
 - POST-06 · **smoke 확장**: 가짜 Supabase에 Auth Admin(목록·생성·단건)·REST 권한 거부(42501)·잠금 RPC를 추가하고, 점검 화면(관리자 실패 0 · 로그인/비관리자 차단 · 비밀값 미노출)과 `db:setup` 전체 흐름(PGlite · 가짜 Auth · ADMIN_USER_IDS 기록 · 재실행 시 기존 계정 인식 · Secret 미출력) 4개 점검을 넣었다. 이 기능이 없는 프로젝트(학습자 프로젝트)는 SKIP으로 점수에서 빼므로 `--project` 기준은 24/24로 유지된다.
 - 검증: npm test 10 files 82 passed · build · lint · smoke 28/28 · 설정 전(환경변수 없음) 서버에서 `/admin/cafe24` → `/admin/setup` 307, 점검 화면 200 · 기능을 뺀 복사본 smoke 24/24(SKIP 1줄) · `pg` 경로는 PGlite 소켓 서버(Postgres 와이어 프로토콜)로 적용→재실행 건너뜀→확인 모드 확인. 실제 Supabase(Session pooler·Auth Admin API)에는 접속하지 않았다.
+
+---
+
+## 사후 추가 (2026-09-16, 사용자 요청 — 실제 몰 운영 중 발견) · 수정 반영 확인 방식
+
+- POST-07 · **수정 반영 확인: PUT 응답 우선, 없으면 재조회 재시도** (`src/lib/cafe24/product-sync.ts` `writeAndVerify`, `product-deps.ts` `putProduct`)
+  - 발견: 실제 몰에서 판매가 적용·복원이 반영됐는데도 502 `WRITE_FAILED`(`VERIFY_MISMATCH`)가 났다. `cafe24_change_log`를 보면 PUT은 오류 없이 끝났지만 직후 조회가 이전 값을 돌려줬고, 이후 1~2분 동안 조회값이 4,940 ↔ 5,200으로 오락가락했다. 성공으로 인정되지 않아 `applied`가 저장되지 않았고, 이어진 복원이 `EDITED_ELSEWHERE`로 막히거나 `already`로 PUT을 건너뛰었다.
+  - 결정: ① PUT이 성공하고 응답 `product`의 상품번호(상품코드가 있으면 상품코드도)가 맞고 이번에 바꾼 필드가 목표값과 같으면 그것으로 확인(`verifiedBy: "put_response"`). 바꾸지 않은 필드가 응답에 없으면 수정 전 값으로 본다. ② 응답으로 확인하지 못하면 0·1·2·3·4초 간격으로 최대 5번 다시 조회해 목표값이 한 번이라도 보이면 확인(`verifiedBy: "reread"`, `readAttempts`). 카페24가 4xx로 거절한 PUT은 기다리지 않고 한 번만 조회한다. ③ 끝까지 확인하지 못했을 때의 결과 코드(`WRITE_FAILED` 502 / `WRITE_UNKNOWN` 500)는 그대로 두고 `detail.readAttempts`를 더했다.
+  - 근거: 목표값은 수정 전 값과 다르므로 조회에서 목표값이 한 번이라도 보였다면 쓰기가 반영된 것이다. 카페24 문서에서 PUT 응답 형식을 확인하지 못해 응답에 값이 올 때만 쓰고, 없으면 기존 재조회 경로로 돌아간다.
+  - 남은 한계: 적용 직후 곧바로 [상품 조회]·[복원]·두 번째 [적용]을 누르면 조회가 이전 값을 줄 수 있어 `already`·`EDITED_ELSEWHERE` 판단은 여전히 틀릴 수 있다(가이드 G 단계에 "1~2분 뒤" 안내). 교육가이드(AI-Native v3)의 에이전트 프롬프트·계약에는 아직 반영하지 않았다.
+- 검증: npm test 10 files 89 passed(가짜 몰에 "PUT 뒤 N번 이전 값 조회"·PUT 응답 전체/일부/다른 상품 사례 7개 추가) · tsc · lint · build · smoke 28/28. 실제 카페24 몰에는 에이전트가 요청하지 않았다.
