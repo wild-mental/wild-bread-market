@@ -23,6 +23,7 @@ node scripts/smoke.mjs  # 프로덕션 서버 + 가짜 Supabase + 헤드리스 C
 
 `node scripts/smoke.mjs --project <경로>`로 같은 라우트 계약을 따르는 다른 프로젝트 폴더도 점검할 수 있다(빌드가 없으면 먼저 빌드, `--build`는 항상 새로 빌드).
 smoke는 테스트 전용 가짜 환경변수만 쓰고 실제 Supabase·카페24에는 요청하지 않는다. 브라우저 점검은 `scripts/fixtures/product-16.html`(상품 16 공개 페이지 사본)을 `https://wildmental.cafe24.com` 주소로 흉내 내어 위젯을 띄운다.
+픽스처는 2026-09-15에 공개 페이지를 GET으로 저장한 원본이며, 페이지에 들어 있던 카페24 오류 수집용 공개 토큰 한 곳만 `REDACTED_PUBLIC_ERROR_TRACER_TOKEN`으로 바꿨다(점검 중 외부 요청은 모두 차단되므로 동작에 영향 없음).
 
 ## 구성
 
