@@ -43,6 +43,9 @@ export type SyncDeps = {
 // PUT 응답으로 확인하지 못하면 이 간격(ms)을 기다리며 다시 조회한다: 최대 5번, 합계 약 10초.
 export const VERIFY_READ_DELAYS_MS = [0, 1000, 2000, 3000, 4000] as const;
 
+// 쓰기 전 현재값이 저장 상태와 어긋날 때 다시 조회하는 간격(ms). 합계 약 6초.
+export const RECHECK_DELAYS_MS = [1000, 2000, 3000] as const;
+
 export type VerifiedBy = 'put_response' | 'reread';
 
 export class SyncError extends Error {
@@ -147,6 +150,34 @@ export function planTarget(state: ProductState, scenario: ScenarioKey, applyDisc
   return { ...target, fields };
 }
 
+// 이 앱이 만들 수 있는 값 목록(시나리오 × 할인 여부). 적용 기록이 없어도 우리가 쓴 값인지 가릴 때 쓴다.
+function isAppTarget(state: ProductState, fields: Baseline): boolean {
+  const keys = Object.keys(SCENARIOS) as ScenarioKey[];
+  return keys.some((key) =>
+    [true, false].some((discount) => same(planTarget(state, key, discount).fields, fields)),
+  );
+}
+
+// 쓰기 없이 끝나는 판단(이미 같음·충돌) 앞에서만 쓴다. accept를 만족하는 값이 한 번이라도 읽히면 그 값을 믿는다.
+async function recheckCurrent(
+  deps: SyncDeps,
+  first: Baseline,
+  accept: (fields: Baseline) => boolean,
+): Promise<Baseline> {
+  const sleep = deps.sleep ?? wait;
+  let latest = first;
+  for (const delay of RECHECK_DELAYS_MS) {
+    await sleep(delay);
+    try {
+      latest = toFields(await readVerifiedProduct(deps));
+    } catch {
+      return latest; // 조회가 실패하면 마지막으로 읽은 값으로 판단한다.
+    }
+    if (accept(latest)) return latest;
+  }
+  return latest;
+}
+
 export async function saveBaseline(deps: SyncDeps) {
   const product = await readVerifiedProduct(deps);
   const { productNo, categoryNo, displayGroup } = LAB.product;
@@ -238,8 +269,13 @@ async function writeAndVerify(
 
 export async function applyChange(deps: SyncDeps, scenario: ScenarioKey, applyDiscount: boolean) {
   const state = await requireState(deps);
-  const before = toFields(await readVerifiedProduct(deps));
+  const first = toFields(await readVerifiedProduct(deps));
   const { fields: target } = planTarget(state, scenario, applyDiscount);
+
+  // 적용한 적이 없는데 "이미 목표값"으로 읽히면 이전 값일 수 있다. 다른 값이 보이면 그것을 쓴다.
+  const trustAlready = state.applied !== null && same(state.applied, target);
+  const before =
+    same(first, target) && !trustAlready ? await recheckCurrent(deps, first, (f) => !same(f, target)) : first;
 
   if (same(before, target)) {
     // 카페24는 같은 내용으로 수정하면 409를 돌려준다. 이미 같으면 PUT을 보내지 않는다.
@@ -258,16 +294,22 @@ export async function applyChange(deps: SyncDeps, scenario: ScenarioKey, applyDi
 
 export async function restoreBaseline(deps: SyncDeps) {
   const state = await requireState(deps);
-  const before = toFields(await readVerifiedProduct(deps));
+  const first = toFields(await readVerifiedProduct(deps));
   const target = state.baseline;
+
+  // 적용한 값이 남아 있는데 "이미 기준값"으로 읽히면 이전 값일 수 있다.
+  // 여기서 잘못 판단하면 applied가 지워져 다음 복원이 모두 충돌로 막힌다.
+  const expected = state.applied;
+  const before =
+    expected && same(first, target) ? await recheckCurrent(deps, first, (f) => same(f, expected)) : first;
 
   if (same(before, target)) {
     await deps.saveState({ ...state, applied: null, scenario: null });
     await deps.log({ action: 'restore', before, target, result: 'already' });
     return { result: 'already' as const, before, after: before, target };
   }
-  // 마지막으로 우리가 적용한 값과 다르면, 누군가 관리자 화면에서 수정한 것이다. 덮어쓰지 않는다.
-  if (!state.applied || !same(before, state.applied)) {
+  // 우리 앱이 만들 수 있는 값이면(적용 기록이 지워졌어도) 우리가 쓴 값이다. 그 밖의 값은 사람이 바꾼 것으로 보고 덮어쓰지 않는다.
+  if (!isAppTarget(state, before)) {
     await deps.log({ action: 'restore', before, target, result: 'conflict' });
     throw new SyncError(409, 'EDITED_ELSEWHERE', '마지막 적용 이후 다른 곳에서 값이 바뀌었습니다. 카페24 관리자에서 확인하세요.', {
       current: before,
