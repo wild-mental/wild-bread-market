@@ -41,7 +41,7 @@
 - [ ] TODO-04 `[비밀값]` Project Settings > API Keys에서 Project URL · Publishable key · Secret key를 확인하고 **Secret key는 비밀번호 관리자**에 옮긴다 (4-1)
 - [ ] TODO-05 `[비밀값]` 내 컴퓨터 `.env.local`에 `SUPABASE_DB_URL`(Supabase Connect → **Session pooler** 문자열, `[YOUR-PASSWORD]` 자리를 DB 비밀번호로) · `NEXT_PUBLIC_SUPABASE_URL` · `SUPABASE_SECRET_KEY` · `SETUP_ADMIN_EMAIL`을 넣고, **내 터미널에서** `npm run db:setup`을 실행한다. 테이블·권한·잠금 함수를 적용하고, 관리자 계정이 없으면 만들고(비밀번호 두 번 입력 → 비밀번호 관리자에 저장), `.env.local`의 `ADMIN_USER_IDS`에 UUID를 적는다. 수작업으로 하려면 SQL Editor에서 `supabase/migrations/0001_cafe24_lab.sql` 실행 (4-2)
 - [ ] TODO-06 `[확인]` 출력 마지막 줄이 `SETUP: … fail=0`이고 `테이블 3개` · `RLS 켜짐` · `잠금 함수` · `anon 접근 차단` · `관리자 계정`이 OK이다. 수작업이면 확인 쿼리 결과가 테이블 3개와 `anon_can_read = false` (4-2)
-- [ ] TODO-07 `[웹]` 관리자 계정을 확인한다: 스크립트가 만들었으면 Supabase Users에 그 이메일이 Confirmed로 보인다. 수작업이면 Authentication > Users > Add user에서 **Auto Confirm User** 체크로 만들고 비밀번호는 비밀번호 관리자에 저장한다. 권장: 새 사용자 가입(Allow new users to sign up)을 끈다 (4-3)
+- [ ] TODO-07 `[웹]` 관리자 계정을 확인한다: 스크립트가 만들었으면 Supabase Users에 그 이메일이 Confirmed로 보인다. 수작업이면 Authentication > Users > Add user에서 **Auto Confirm User** 체크로 만들고 비밀번호는 비밀번호 관리자에 저장한다. **주의(GRIP-01로 변경됨)**: 참여자 계정을 Supabase Auth 이메일 가입으로 정했으므로 새 사용자 가입(Allow new users to sign up)은 **켜 둔다**. 예전 권장(끄기)은 관리자 전용 시절 기준이었다 (4-3)
 - [ ] TODO-08 `[비밀값]` 본인 터미널에서 토큰 암호화 키를 만들어 비밀번호 관리자에 저장한다. 이 키는 바꾸면 저장된 토큰을 풀 수 없다 (4-4)
 
 ## 2. GitHub · Vercel
@@ -73,8 +73,13 @@
 
 프로토타입에서 임시로 정한 규칙이다. 근거는 `docs/DECISION_LOG.md`의 해당 항목.
 
-- [ ] TODO-25 `[확인]` 회차 마감 시각(목업: 영업일 09:00 KST)을 발주사와 확정한다 — MINOR-02
-- [ ] TODO-26 `[확인]` 직전 확정값과 같은 보합일 때 무효 처리할지 확정한다 — MINOR-07
+- [x] TODO-25 `[확인]` 회차 마감 시각 — **확정됨(GRIP-05)**: 영업일 09:00 KST, 영업일은 한국거래소(KRX) 휴장일 제외. 마감 정각 불포함 — MINOR-02 → GRIP-05
+- [x] TODO-26 `[확인]` 보합 처리 — **확정됨(GRIP-06)**: 보합은 UP·DOWN 어느 쪽이든 **정답(HIT)**. 부분 미수집이면 회차 전체 무효 — MINOR-07 → GRIP-06
+- [ ] TODO-31 `[확인]` 약관·개인정보처리방침 작성 주체를 정하고 법무 검토를 받는다. 수집 항목은 이메일·닉네임, 보유기간 3년, 탈퇴 시 예측 기록 익명화로 확정됐다 — GRIP-03
+- [ ] TODO-32 `[확인]` 외부 시세 데이터 출처(KOSPI·원/달러·금)를 선정하고 **상업적 이용 허용 여부·호출 한도·유료 여부**를 약관에서 확인한다. 원지표 원본을 DB에 보관하는 것이 약관에 저촉되지 않는지도 함께 본다 — GRIP-08
+- [ ] TODO-33 `[확인]` 한국거래소(KRX) 휴장일 목록을 어디서 받을지 정한다(공식 공표 자료 또는 API). 회차 자동 생성이 이 목록에 의존한다 — GRIP-05
+- [ ] TODO-34 `[확인]` 브레드 지수 환산식(원지표 → 3종 지수)과 기준일·기준값을 확정한다. 공식은 비공개로 운영하되 내부 문서에는 남긴다 — GRIP-08
+- [ ] TODO-35 `[확인]` 주간 상위 5명 리워드가 **경품 고지 의무·제세공과금** 대상인지 법무 확인을 받는다. 리워드 가액과 당첨자 수 공지 방식도 함께 정한다 — GRIP-10
 
 ## 6. 운영 중 비밀값 관리
 

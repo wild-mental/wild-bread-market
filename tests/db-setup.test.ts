@@ -17,9 +17,20 @@ import {
 
 const ADMIN = '11111111-1111-4111-8111-111111111111';
 
+// Supabase가 기본으로 주는 것(역할 3개 + auth 스키마)을 빈 PGlite에 최소한으로 만들어 둔다.
+// 0002부터 auth.users를 참조하므로 역할만으로는 마이그레이션이 적용되지 않는다.
 async function supabaseLikeDb() {
   const pg = new PGlite();
-  await pg.exec('create role anon; create role authenticated; create role service_role;');
+  await pg.exec(`
+    create role anon; create role authenticated; create role service_role;
+    create schema auth;
+    create table auth.users (id uuid primary key);
+    create or replace function auth.uid() returns uuid language sql stable as $$
+      select nullif(current_setting('test.user_id', true), '')::uuid
+    $$;
+    grant usage on schema auth to anon, authenticated, service_role;
+    grant execute on function auth.uid() to anon, authenticated, service_role;
+  `);
   return { pg, db: { query: (sql: string, params?: unknown[]) => pg.query(sql, params), exec: (sql: string) => pg.exec(sql) } };
 }
 
@@ -28,18 +39,22 @@ describe('db:setup · 마이그레이션', () => {
     const { pg, db } = await supabaseLikeDb();
     const files = listMigrationFiles('supabase/migrations');
     expect(files.map((f) => f.name)).toContain('0001_cafe24_lab.sql');
+    expect(files.map((f) => f.name)).toContain('0002_mvp_core.sql');
 
-    expect(await applyMigrations(db, files, { dryRun: true })).toEqual([{ name: '0001_cafe24_lab.sql', action: 'pending' }]);
-    expect(await applyMigrations(db, files)).toEqual([{ name: '0001_cafe24_lab.sql', action: 'applied' }]);
-    expect(await applyMigrations(db, files)).toEqual([{ name: '0001_cafe24_lab.sql', action: 'skipped' }]);
+    // 파일을 추가해도 깨지지 않게, 기대값은 실제 목록에서 만든다.
+    const all = (action: string) => files.map((f) => ({ name: f.name, action }));
+    expect(await applyMigrations(db, files, { dryRun: true })).toEqual(all('pending'));
+    expect(await applyMigrations(db, files)).toEqual(all('applied'));
+    expect(await applyMigrations(db, files)).toEqual(all('skipped'));
     await pg.close();
   });
 
   it('SQL Editor로 이미 만든 DB에도 다시 적용할 수 있다(SQL이 if not exists · or replace)', async () => {
     const { pg, db } = await supabaseLikeDb();
     const files = listMigrationFiles('supabase/migrations');
-    await pg.exec(files[0].sql);
-    expect(await applyMigrations(db, files)).toEqual([{ name: '0001_cafe24_lab.sql', action: 'applied' }]);
+    // SQL Editor로 전부 직접 실행한 상태를 만든 뒤, 러너가 같은 SQL을 다시 적용해도 오류가 없어야 한다.
+    for (const file of files) await pg.exec(file.sql);
+    expect(await applyMigrations(db, files)).toEqual(files.map((f) => ({ name: f.name, action: 'applied' })));
     await pg.close();
   });
 

@@ -64,9 +64,15 @@ describe('정답 판정 · 직전 확정값 대비 상승/하락', () => {
     expect(judgePrediction('DOWN', 101.2, 102.4)).toBe('MISS');
   });
 
-  it('휴장·미공시(확정값 없음)와 보합은 VOID', () => {
+  it('휴장·미공시(확정값 없음)는 VOID', () => {
     expect(judgePrediction('UP', 101.2, null)).toBe('VOID');
-    expect(judgePrediction('DOWN', 100, 100)).toBe('VOID');
+    expect(judgePrediction('DOWN', null, 100)).toBe('VOID');
+    expect(judgePrediction('UP', Number.NaN, 100)).toBe('VOID');
+  });
+
+  it('보합(직전과 같은 값)은 UP·DOWN 어느 쪽을 골랐어도 정답이다 — GRIP-06', () => {
+    expect(judgePrediction('UP', 100, 100)).toBe('HIT');
+    expect(judgePrediction('DOWN', 100, 100)).toBe('HIT');
   });
 
   it('예측하지 않은 지수는 NONE', () => {

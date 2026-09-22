@@ -85,10 +85,20 @@ try {
 console.log('\n[2] Supabase DB');
 async function connect(url) {
   if (url.startsWith('pglite://')) {
-    // 테스트 전용: 메모리 Postgres(PGlite)에 Supabase 기본 역할을 만들어 흉내 낸다.
+    // 테스트 전용: 메모리 Postgres(PGlite)에 Supabase 기본 구조(역할 3개 + auth 스키마)를 만들어 흉내 낸다.
+    // 0002부터 auth.users를 참조하므로 역할만으로는 마이그레이션이 적용되지 않는다.
     const { PGlite } = await import('@electric-sql/pglite');
     const pg = new PGlite();
-    await pg.exec('create role anon; create role authenticated; create role service_role;');
+    await pg.exec(`
+      create role anon; create role authenticated; create role service_role;
+      create schema auth;
+      create table auth.users (id uuid primary key);
+      create or replace function auth.uid() returns uuid language sql stable as $$
+        select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+      $$;
+      grant usage on schema auth to anon, authenticated, service_role;
+      grant execute on function auth.uid() to anon, authenticated, service_role;
+    `);
     return { db: { query: (s, p) => pg.query(s, p), exec: (s) => pg.exec(s) }, close: () => pg.close() };
   }
   const { default: pg } = await import('pg');

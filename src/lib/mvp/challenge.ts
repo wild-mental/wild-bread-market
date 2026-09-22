@@ -34,15 +34,20 @@ export function actualDirection(previous: number | null, confirmed: number | nul
   return confirmed > previous ? 'UP' : 'DOWN';
 }
 
+// 판정 규칙 (GRIP-06)
+//   확정값 없음(휴장·미공시) → VOID, 분모에서 뺀다
+//   보합(직전과 같은 값)     → HIT, 사용자가 통제할 수 없는 사유이므로 정답으로 본다
+//   그 밖                     → 방향이 맞으면 HIT, 틀리면 MISS
 export function judgePrediction(
   pick: Pick | null | undefined,
   previous: number | null,
   confirmed: number | null,
 ): Outcome {
   if (pick !== 'UP' && pick !== 'DOWN') return 'NONE';
-  const actual = actualDirection(previous, confirmed);
-  if (actual === null) return 'VOID';
-  return pick === actual ? 'HIT' : 'MISS';
+  if (previous === null || confirmed === null) return 'VOID';
+  if (!Number.isFinite(previous) || !Number.isFinite(confirmed)) return 'VOID';
+  if (confirmed === previous) return 'HIT';
+  return pick === actualDirection(previous, confirmed) ? 'HIT' : 'MISS';
 }
 
 // 주간 정확도 = 정답 수 ÷ 유효 예측 수. 무효 회차(VOID)와 미참여(NONE)는 분모에서 뺀다.
