@@ -9,7 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:setup": "node scripts/db-setup.mjs",
-    "setup:check": "node scripts/db-setup.mjs --check"
+    "setup:check": "node scripts/db-setup.mjs --check",
+    "typecheck": "tsc --noEmit",
+    "lint:fix": "eslint --fix",
+    "knip": "knip",
+    "quality": "npm run typecheck && npm run lint && npm run knip"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -26,8 +30,11 @@
     "@types/react-dom": "19.3.0",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.5",
+    "eslint-plugin-sonarjs": "4.2.1",
+    "knip": "6.37.0",
     "pg": "8.23.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
     "vitest": "5.0.0"
   }
 }
